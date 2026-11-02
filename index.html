@@ -1,0 +1,276 @@
+<!-- test -->
+line2<title>Theo dõi hợp đồng Stellar</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Bố cục: thanh tiêu đề, dải lọc theo trạng thái, lưới thẻ theo dự án (bấm để mở danh sách hợp đồng), chế độ Bảng theo từng hợp đồng. */
+:root{
+  --bg:#f4f5f7; --surface:#ffffff; --fg:#14213d; --muted:#5b6678; --line:#d9dde4;
+  --accent:#1f4e8c; --accent-soft:#e6eef8;
+  --ok:#1b7a4b; --ok-bg:#e3f3ea;
+  --warn:#9a5b00; --warn-bg:#fbefd5;
+  --info:#3b5a8f; --info-bg:#e6ecf7;
+  --bad:#a52a2a; --bad-bg:#f8e4e4;
+  --font:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1624; --surface:#172034; --fg:#e8ecf4; --muted:#9aa5ba; --line:#2a3550;
+  --accent:#7fb0ee; --accent-soft:#1e2c47;
+  --ok:#6fd3a0; --ok-bg:#16352a; --warn:#f0bd6a; --warn-bg:#3a2d12;
+  --info:#9db8ea; --info-bg:#1f2c49; --bad:#f19a9a; --bad-bg:#3d1c1c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1624; --surface:#172034; --fg:#e8ecf4; --muted:#9aa5ba; --line:#2a3550;
+  --accent:#7fb0ee; --accent-soft:#1e2c47;
+  --ok:#6fd3a0; --ok-bg:#16352a; --warn:#f0bd6a; --warn-bg:#3a2d12;
+  --info:#9db8ea; --info-bg:#1f2c49; --bad:#f19a9a; --bad-bg:#3d1c1c; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14px;line-height:1.5;
+  padding-block:0 32px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;padding:24px 0 16px;border-bottom:2px solid var(--fg)}
+.brand{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{margin:2px 0 0;font-size:24px;font-weight:700;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;margin-top:2px}
+.meta{font-size:12px;color:var(--muted);text-align:right}
+.meta b{color:var(--fg);font-weight:600}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:14px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;flex:1 1 380px;min-width:0}
+.chip{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:5px 11px;border-radius:999px;cursor:pointer}
+.chip .n{font-family:var(--mono);margin-left:6px;color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.chip[aria-pressed="true"] .n{color:inherit;opacity:.8}
+input[type=search]{font:inherit;font-size:13px;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg);flex:0 1 220px;min-width:0}
+.btn{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:6px 11px;border-radius:6px;cursor:pointer}
+.btn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.seg{display:inline-flex}
+.seg .btn:first-child{border-radius:6px 0 0 6px}.seg .btn:last-child{border-radius:0 6px 6px 0;border-left:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.summary{display:flex;flex-wrap:wrap;gap:6px 24px;font-size:13px;color:var(--muted);padding-bottom:12px}
+.summary b{color:var(--fg);font-family:var(--mono);font-weight:500}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;align-items:start}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;min-width:0}
+.card>button{all:unset;display:block;width:100%;box-sizing:border-box;padding:14px 16px;cursor:pointer}
+.card>button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:8px}
+.ct{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.ct h2{margin:0;font-size:16px;font-weight:600}
+.caret{color:var(--muted);font-size:12px;transition:transform .15s}
+.card.open .caret{transform:rotate(90deg)}
+.tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.tag{font-size:12px;padding:1px 8px;border-radius:4px;font-weight:500;white-space:nowrap}
+.s-signed{background:var(--ok-bg);color:var(--ok)}
+.s-resign{background:var(--warn-bg);color:var(--warn)}
+.s-nodate{background:var(--info-bg);color:var(--info)}
+.s-none{background:var(--bad-bg);color:var(--bad)}
+.kv{display:flex;justify-content:space-between;gap:12px;margin-top:8px;font-size:12px;color:var(--muted)}
+.kv span:last-child{font-family:var(--mono);color:var(--fg);text-align:right}
+.list{border-top:1px solid var(--line);padding:4px 16px 12px}
+.card:not(.open) .list{display:none}
+.hd{padding:10px 0;border-bottom:1px dashed var(--line)}
+.hd:last-of-type{border-bottom:0}
+.hd .r1{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.hd .nd{font-weight:600;font-size:13px}
+.so{font-family:var(--mono);font-size:12px;color:var(--muted);overflow-wrap:anywhere;margin-top:2px}
+.hd .r2{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;margin-top:4px;font-size:12px;color:var(--muted)}
+.hd .r2 .v{font-family:var(--mono);color:var(--fg)}
+.note{font-size:12px;color:var(--muted);margin-top:2px}
+.thieu{margin-top:8px;font-size:12px;color:var(--bad)}
+.pic{font-size:12px;color:var(--muted);margin-top:8px}
+.tw{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;min-width:860px;font-size:13px}
+th{position:sticky;top:0;text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:9px 12px;border-bottom:2px solid var(--fg);background:var(--surface);font-weight:600;white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+td.num,th.num{text-align:right}
+td.m{font-family:var(--mono);font-size:12px;overflow-wrap:anywhere}
+tr.pj td{background:var(--accent-soft);font-weight:600}
+.empty{padding:32px 0;text-align:center;color:var(--muted)}
+footer{margin-top:28px;padding-top:12px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 16px}
+@media (max-width:520px){h1{font-size:20px}.meta{text-align:left}.grid{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.caret{transition:none}}
+
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-top:12px}
+.tab{font:inherit;font-size:14px;font-weight:600;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:10px 14px;cursor:pointer;margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+.s-todo{background:var(--line);color:var(--muted)}
+.s-doing{background:var(--warn-bg);color:var(--warn)}
+.s-done{background:var(--ok-bg);color:var(--ok)}
+.prog{display:flex;gap:2px;margin-top:8px}
+.prog i{flex:1;height:5px;border-radius:2px;background:var(--line)}
+.prog i.d{background:var(--ok)}
+.prog i.c{background:var(--warn)}
+.steps{margin-top:8px;display:grid;gap:4px}
+.stp{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;font-size:12px;padding:3px 0}
+.stp input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent)}
+.stp input[type=date]{font:inherit;font-size:12px;padding:2px 4px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--fg);width:128px}
+.stp.cur .lb{font-weight:600}
+.stp .lb{min-width:0}
+.banner{background:var(--warn-bg);color:var(--warn);padding:8px 12px;border-radius:6px;font-size:13px;margin-bottom:10px}
+.hd .ben{font-size:12px;color:var(--muted);margin-top:2px}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="brand">Stellar · Phòng Đấu thầu</div>
+      <h1>Theo dõi hợp đồng</h1>
+      <div class="sub" id="sub"></div>
+    </div>
+    <div class="meta">Danh mục cập nhật: <b id="upd"></b><br>Nguồn: <span id="srcname"></span></div>
+  </header>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tAB" aria-selected="true">Hợp đồng A-B</button>
+    <button class="tab" role="tab" id="tBB" aria-selected="false">Hợp đồng B-B'</button>
+  </div>
+  <div class="bar">
+    <div class="chips" id="chips" role="group" aria-label="Lọc"></div>
+    <input type="search" id="q" placeholder="Tìm dự án, số hợp đồng" aria-label="Tìm kiếm">
+    <button class="btn" id="vis" aria-pressed="true">Ẩn giá trị</button>
+    <div class="seg" role="group" aria-label="Chế độ xem">
+      <button class="btn" id="vCard" aria-pressed="true">Thẻ</button>
+      <button class="btn" id="vTab" aria-pressed="false">Bảng</button>
+    </div>
+    <button class="btn" id="all" hidden>Mở tất cả</button>
+  </div>
+  <div id="ro" class="banner" hidden>Bản chỉ xem. Tiến độ các bước theo lần xuất bản gần nhất.</div>
+  <div class="summary" id="summary"></div>
+  <div id="out"></div>
+  <footer>
+    <span>© 2026 Công ty CP Thiết kế Xây dựng Stellar. Giá trị hợp đồng theo cột "Giá trị hợp đồng" của danh mục, đơn vị đồng.</span>
+    <span>Dữ liệu theo danh mục hợp đồng ngày 14/10/2026.</span>
+  </footer>
+</div>
+<script>
+const DATA = {"A": [{"ten": "79 Lạc Trung", "hd": [{"key": "ab-1", "nd": "QH + Concept", "so": "1112/2025/HĐTV-QH-LACTRUNG/UNI-STL", "ngay": "", "ghi_ngay": "", "st": "resign", "gt": 7907365867, "ghichu": "Hợp đồng ký lại", "scan": true}, {"key": "ab-2", "nd": "TKCS", "so": "1112/2025/HĐTV-TKCS-LACTRUNG/UNI-STL", "ngay": "", "ghi_ngay": "", "st": "resign", "gt": 3505414717, "ghichu": "Hợp đồng ký lại", "scan": true}, {"key": "ab-4", "nd": "QLTK (TKCS)", "so": "1112/2025/HĐTV-QLTK-LACTRUNG/UNI-STL", "ngay": "", "ghi_ngay": "", "st": "resign", "gt": 2089704313, "ghichu": "Hợp đồng ký lại", "scan": true}], "thieu": ["TKBVTC", "QLTK (TKBVTC)"]}, {"ten": "Định Công", "hd": [{"key": "ab-6", "nd": "QH + Concept", "so": "1112/2025/HĐTV-QH-DINHCONG/UNI-STL", "ngay": "", "ghi_ngay": "", "st": "resign", "gt": 3516239265, "ghichu": "Hợp đồng ký lại", "scan": true}, {"key": "ab-7", "nd": "TKCS", "so": "1112/2025/HĐTV-TKCS-DINHCONG/UNI-STL", "ngay": "", "ghi_ngay": "", "st": "resign", "gt": 1473926077, "ghichu": "Hợp đồng ký lại", "scan": true}, {"key": "ab-9", "nd": "QLTK (Concept + TKCS)", "so": "1112/2025/HĐTV-QLTK-DINHCONG/UNI-STL", "ngay": "", "ghi_ngay": "", "st": "none", "gt": 858628419, "ghichu": "Chưa có hồ sơ HĐ", "scan": true}], "thieu": ["TKBVTC", "QLTK (TKBVTC)"]}, {"ten": "Đức Giang", "hd": [{"key": "ab-11", "nd": "QH + Concept", "so": "191/2026/HĐTV-QH-DUCGIANG/TEXTACO-STL", "ngay": "", "ghi_ngay": "", "st": "resign", "gt": 9662533843, "ghichu": "Hợp đồng ký lại", "scan": true}, {"key": "ab-12", "nd": "TKCS", "so": "191/2026/HĐTV-TKCS-DUCGIANG/TEXTACO-STL", "ngay": "", "ghi_ngay": "", "st": "resign", "gt": 5152050784, "ghichu": "Hợp đồng ký lại", "scan": true}, {"key": "ab-14", "nd": "QLTK (TKCS)", "so": "191/2026/HĐQLTK-DUCGIANG/TEXTACO-STL", "ngay": "", "ghi_ngay": "", "st": "resign", "gt": 2783088223, "ghichu": "Hợp đồng ký lại", "scan": true}], "thieu": ["TKBVTC", "QLTK (TKBVTC)"]}, {"ten": "Lại Yên", "hd": [{"key": "ab-16", "nd": "QH + Concept", "so": "191/2026/HĐTV-QH-LAIYEN/CIRI-STL", "ngay": "", "ghi_ngay": "", "st": "resign", "gt": 11492597486, "ghichu": "Hợp đồng ký lại", "scan": true}, {"key": "ab-17", "nd": "TKCS", "so": "510/2026/HĐTV-TKCS-LAIYEN/CIRI-STL", "ngay": "", "ghi_ngay": "", "st": "resign", "gt": 5542534861, "ghichu": "Hợp đồng ký lại", "scan": true}, {"key": "ab-18", "nd": "TKBVTC", "so": "0602/2026/HĐTV-TKBVTC-LAIYEN/STL-CIRI", "ngay": "", "ghi_ngay": "", "st": "resign", "gt": 36154808957, "ghichu": "Hợp đồng ký lại", "scan": true}, {"key": "ab-19", "nd": "QLTK (TKCS)", "so": "191/2026/HĐQLTK-LAIYEN/CIRI-STL", "ngay": "", "ghi_ngay": "", "st": "resign", "gt": 3205030408, "ghichu": "Hợp đồng ký lại", "scan": true}], "thieu": ["QLTK (TKBVTC)"]}, {"ten": "Nguyễn Hoàng", "hd": [{"key": "ab-21", "nd": "QH + Concept", "so": "71/2026/HĐTV-QH-NGUYENHOANG/HDIC-STL", "ngay": "", "ghi_ngay": "", "st": "resign", "gt": 2985503372, "ghichu": "Hợp đồng ký lại", "scan": true}, {"key": "ab-22", "nd": "TKCS", "so": "72/2026/HĐTV-TKCS-NGUYENHOANG/HDIC-STL", "ngay": "", "ghi_ngay": "", "st": "resign", "gt": 1289922693, "ghichu": "Hợp đồng ký lại", "scan": true}, {"key": "ab-23", "nd": "TKBVTC", "so": "23/2026/HĐTV/HDIC-STL", "ngay": "07/05/2026", "ghi_ngay": "", "st": "signed", "gt": 10508998706, "ghichu": "Hợp đồng ban đầu", "scan": true}, {"key": "ab-24", "nd": "QLTK (TKCS)", "so": "73/2026/HĐTV-QLTK-NGUYENHOANG/HDIC-STL", "ngay": "", "ghi_ngay": "", "st": "resign", "gt": 724932982, "ghichu": "Hợp đồng ký lại", "scan": true}], "thieu": ["QLTK (TKBVTC)"]}, {"ten": "Bàu Vá", "hd": [{"key": "ab-26", "nd": "QH + TKCS + TKBVTC", "so": "1112/2026/HĐTV-TKCS&TKBVTC-BAUVA/F1-STL", "ngay": "15/01/2026", "ghi_ngay": "", "st": "signed", "gt": 13556337671, "ghichu": "Có phụ lục", "scan": true}], "thieu": ["QLTK (TKCS)", "QLTK (TKBVTC)"]}, {"ten": "605 Minh Khai", "hd": [{"key": "ab-29", "nd": "QH + Concept", "so": "3012A/2025/HĐTV/UNI-STL", "ngay": "30/12/2025", "ghi_ngay": "", "st": "signed", "gt": 3874025124, "ghichu": "Hợp đồng ban đầu", "scan": true}, {"key": "ab-30", "nd": "TKCS", "so": "3012B/2025/HĐTV/UNI-STL", "ngay": "30/12/2025", "ghi_ngay": "", "st": "signed", "gt": 1560532196, "ghichu": "Hợp đồng ban đầu", "scan": true}, {"key": "ab-32", "nd": "QLTK (TKCS)", "so": "3012/2025/HĐQLTK/UNI-STL", "ngay": "30/12/2025", "ghi_ngay": "", "st": "signed", "gt": 934269378, "ghichu": "Hợp đồng ban đầu", "scan": true}], "thieu": ["TKBVTC", "QLTK (TKBVTC)"]}, {"ten": "486 Ngọc Hồi", "hd": [{"key": "ab-35", "nd": "TKCS + TKBVTC (nhà trẻ)", "so": "1603NT/2026/HĐTV/TBH-STL", "ngay": "", "ghi_ngay": "Chưa đọc được ngày ký trên bản scan", "st": "nodate", "gt": 158909700, "ghichu": "Hợp đồng ban đầu", "scan": true}, {"key": "ab-36", "nd": "TKCS + TKBVTC (NOXH tòa C, D)", "so": "1803/2026/HĐTV/TBH-STL", "ngay": "", "ghi_ngay": "Chưa đọc được ngày ký trên bản scan", "st": "nodate", "gt": 4830246324, "ghichu": "Hợp đồng ban đầu", "scan": true}], "thieu": ["QH + Concept", "QLTK (TKCS)", "QLTK (TKBVTC)"]}, {"ten": "232 Minh Khai", "hd": [{"key": "ab-39", "nd": "QH", "so": "2411B/2025/HĐTV/UNI-STL", "ngay": "24/11/2025", "ghi_ngay": "", "st": "signed", "gt": 790738842, "ghichu": "Hợp đồng ban đầu", "scan": true}, {"key": "ab-40", "nd": "Concept", "so": "2411A/2025/HĐTV/UNI-STL", "ngay": "24/11/2025", "ghi_ngay": "", "st": "signed", "gt": 6762903840, "ghichu": "Hợp đồng ban đầu", "scan": true}, {"key": "ab-41", "nd": "TKCS + TKBVTC", "so": "08/2026/HĐTV/UNI-STL", "ngay": "", "ghi_ngay": "Bìa ghi Hà Nội 03/2026; ngày ký để trống", "st": "nodate", "gt": 10017789923, "ghichu": "Hợp đồng ban đầu", "scan": true}, {"key": "ab-42", "nd": "QLTK (TKCS + TKBVTC)", "so": "09/2026/HĐQLTK-232MK/UNI-STL", "ngay": "", "ghi_ngay": "Bìa ghi Hà Nội 03/2026; ngày ký để trống", "st": "nodate", "gt": 1502668489, "ghichu": "Hợp đồng ban đầu", "scan": true}], "thieu": []}, {"ten": "D13", "hd": [{"key": "ab-43", "nd": "Concept", "so": "2711A/2025/HĐTV/CIRI-STL", "ngay": "27/11/2025", "ghi_ngay": "", "st": "signed", "gt": 8575108416, "ghichu": "Hợp đồng ban đầu", "scan": true}, {"key": "ab-44", "nd": "QH", "so": "2711B/2025/HĐTV/CIRI-STL", "ngay": "27/11/2025", "ghi_ngay": "", "st": "signed", "gt": 2285129205, "ghichu": "Hợp đồng ban đầu", "scan": true}], "thieu": ["TKCS", "TKBVTC", "QLTK (TKCS)", "QLTK (TKBVTC)"]}, {"ten": "Hương Sơ", "hd": [{"key": "ab-49", "nd": "QH + TKCS + TKBVTC", "so": "208/2026/HĐTV/HUONGSO-STL", "ngay": "", "ghi_ngay": "Bản scan để trống ngày ký trong hợp đồng; anh xác nhận ngày ký", "st": "nodate", "gt": 30419917542, "ghichu": "Hợp đồng ban đầu", "scan": true}], "thieu": ["QLTK (TKCS)", "QLTK (TKBVTC)"]}, {"ten": "IA 25", "hd": [{"key": "ab-55", "nd": "Điều chỉnh TK + QLTK", "so": "265/2026/HĐTV&QLTK/TNL-STL", "ngay": "", "ghi_ngay": "Bìa ghi Hà Nội .../2026; ngày ký để trống", "st": "nodate", "gt": 13664507063, "ghichu": "Hợp đồng ban đầu", "scan": true}], "thieu": ["QH + Concept", "TKCS", "TKBVTC", "QLTK (TKBVTC)"]}, {"ten": "Ngọc Xuyên", "hd": [{"key": "ab-57", "nd": "Concept + TKCS + TKBVTC", "so": "3012/2025/HĐTV/PĐ-STL", "ngay": "30/12/2025", "ghi_ngay": "", "st": "signed", "gt": 5393301905, "ghichu": "Hợp đồng ban đầu", "scan": true}, {"key": "ab-58", "nd": "TKCS + TKBVTC (HTKT)", "so": "1809/2025/HĐTV/PĐ-STL", "ngay": "18/09/2025", "ghi_ngay": "", "st": "signed", "gt": 1092528000, "ghichu": "Hợp đồng ban đầu", "scan": true}, {"key": "ab-59", "nd": "QLTK (TKCS)", "so": "3012/2025/HĐQLTK/PĐ-STL", "ngay": "", "ghi_ngay": "Bìa ghi Hà Nội 12/2025; ngày ký để trống", "st": "nodate", "gt": 1297165981, "ghichu": "Hợp đồng ban đầu", "scan": true}], "thieu": ["QLTK (TKBVTC)"]}, {"ten": "Yên Viên", "hd": [{"key": "ab-61", "nd": "QH", "so": "3112/2025/HĐTV/F1-STL", "ngay": "31/12/2025", "ghi_ngay": "", "st": "signed", "gt": 2215956355, "ghichu": "Hợp đồng ban đầu", "scan": true}], "thieu": ["TKCS", "TKBVTC", "QLTK (TKCS)", "QLTK (TKBVTC)"]}, {"ten": "Vân Long", "hd": [{"key": "ab-66", "nd": "Điều chỉnh QH chung", "so": "…/2026/HĐ-TVQH/GV-STL", "ngay": "", "ghi_ngay": "", "st": "none", "gt": 108000000, "ghichu": "Chưa có hồ sơ HĐ", "scan": false}], "thieu": ["TKCS", "TKBVTC", "QLTK (TKCS)", "QLTK (TKBVTC)"]}], "B": [{"ten": "79 Lạc Trung", "hd": [{"key": "bb-71", "nd": "QH", "so": "1901/2026/HĐCG/STL-TRANTHITHUHUONG", "ngay": "19/01/2026", "gt": 85500000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": true, "ben": "Bà Trần Thị Thu Hương"}]}, {"ten": "Định Công", "hd": [{"key": "bb-72", "nd": "QH", "so": "1901/2026/HĐCG/STL-TRANTHITHUHUONG", "ngay": "19/01/2026", "gt": 85500000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": true, "ben": "Bà Trần Thị Thu Hương"}]}, {"ten": "Đức Giang", "hd": [{"key": "bb-73", "nd": "Điều chỉnh QH", "so": "1901/2026/HĐCG/STL-TRANTHITHUHUONG", "ngay": "19/01/2026", "gt": 114000000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": true, "ben": "Bà Trần Thị Thu Hương"}, {"key": "bb-74", "nd": "QH (HTKT)", "so": "06/2026/HĐCG", "ngay": "12/02/2026", "gt": 22500000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": true, "ben": "Ông Mai Hữu Tốn"}, {"key": "bb-75", "nd": "VNCC – TKCS", "so": "227/2026/HĐTV/STL-VNCC", "ngay": "", "gt": 7133000000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": false, "ben": "VNCC"}]}, {"ten": "Lại Yên", "hd": [{"key": "bb-76", "nd": "QH (HTKT)", "so": "06/2026/HĐCG", "ngay": "12/02/2026", "gt": 22500000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": true, "ben": "Ông Mai Hữu Tốn"}, {"key": "bb-77", "nd": "PCCC", "so": "207/2026/HĐKT/STL-FISA", "ngay": "", "gt": 432000000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": true, "ben": "Công ty TNHH Fisa Việt Nam"}, {"key": "bb-78", "nd": "CCU – TKCS + TKBVTC", "so": "0903/2026/HĐTV", "ngay": "", "gt": 21300000000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": false, "ben": "CCU"}, {"key": "bb-79", "nd": "Kita – TKCS + TKBVTC (nội thất)", "so": "37/2026/HĐTV/STL-Kita", "ngay": "", "gt": 641520000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": true, "ben": "Kita"}]}, {"ten": "Nguyễn Hoàng", "hd": [{"key": "bb-80", "nd": "QH", "so": "1901/2026/HĐCG/STL-TRANTHITHUHUONG", "ngay": "19/01/2026", "gt": 85500000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": true, "ben": "Bà Trần Thị Thu Hương"}, {"key": "bb-81", "nd": "Reco – Kết cấu + BIM + Dự toán", "so": "15/2026/HĐTV/STL-Reco", "ngay": "", "gt": 2136240000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": false, "ben": "Reco"}, {"key": "bb-82", "nd": "Fisa – PCCC", "so": "67/2026/HĐTV/STL-FISA", "ngay": "", "gt": 300000000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": false, "ben": "Fisa"}]}, {"ten": "Bàu Vá", "hd": [{"key": "bb-83", "nd": "QH (HTKT)", "so": "06/2026/HĐCG", "ngay": "12/02/2026", "gt": 22500000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": true, "ben": "Ông Mai Hữu Tốn"}, {"key": "bb-84", "nd": "BTIC – Concept", "so": "03/2026/HĐTV/STL-BTIC", "ngay": "", "gt": 378000000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": false, "ben": "BTIC"}, {"key": "bb-85", "nd": "Phạm Văn Tuấn – QH", "so": "01/2026/HĐCG/STL-PHAMVANTUAN", "ngay": "", "gt": 50000000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": false, "ben": "Phạm Văn Tuấn"}, {"key": "bb-86", "nd": "CIC – TKCS + TKBVTC + BIM + PCCC", "so": "", "ngay": "", "gt": 4545891535, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": false, "ben": "CIC"}]}, {"ten": "605 Minh Khai", "hd": [{"key": "bb-87", "nd": "QH", "so": "1901/2026/HĐCG/STL-TRANTHITHUHUONG", "ngay": "19/01/2026", "gt": 85500000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": true, "ben": "Bà Trần Thị Thu Hương"}]}, {"ten": "486 Ngọc Hồi", "hd": [{"key": "bb-88", "nd": "Lê Mạnh Duẩn – Dự toán", "so": "", "ngay": "", "gt": 100000000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": false, "ben": "Lê Mạnh Duẩn"}, {"key": "bb-89", "nd": "Lotus – TKBVTC (kết cấu tòa D)", "so": "12/2026/HĐTV/STL-LOTUS", "ngay": "", "gt": 183600000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": false, "ben": "Lotus"}, {"key": "bb-90", "nd": "VCCC – TKBVTC (M&E)", "so": "01/2026/HĐTV/STL-VCCC", "ngay": "", "gt": null, "gt_note": "Chưa có giá trị trong bảng thống kê", "ghichu": "Chưa có hồ sơ HĐ", "scan": false, "ben": "VCCC"}]}, {"ten": "232 Minh Khai", "hd": [{"key": "bb-91", "nd": "Sondoom – Concept", "so": "0512/2025/HĐTV/STL-SDA", "ngay": "", "gt": 5405910000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": false, "ben": "Sondoom"}, {"key": "bb-92", "nd": "Liên danh VNCC - CIC – TKCS + TKBVTC + BIM + PCCC", "so": "313/2026/HĐTV/STL-VNCC-CIC", "ngay": "", "gt": 5412142000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": false, "ben": "Liên danh VNCC - CIC"}, {"key": "bb-93", "nd": "Fisa – PCCC", "so": "84/2026/HĐKT/STL-FISA", "ngay": "", "gt": 410400000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": false, "ben": "Fisa"}]}, {"ten": "D13", "hd": [{"key": "bb-94", "nd": "Broadway Malyan – Concept + rà soát TKCS, TKBVTC", "so": "2711/2025/HĐTV/STL-BM", "ngay": "", "gt": 6958956480, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": false, "ben": "Broadway Malyan"}]}, {"ten": "Hương Sơ", "hd": [{"key": "bb-95", "nd": "BTIC – Concept", "so": "04/2026/HĐTV/STL-BTIC", "ngay": "", "gt": 378000000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": false, "ben": "BTIC"}, {"key": "bb-96", "nd": "TEG – TKCS + TKBVTC", "so": "287/2026/HĐTV/STL-TEG", "ngay": "", "gt": 10260000000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": false, "ben": "TEG"}, {"key": "bb-97", "nd": "Phú Đức Huy – QH (HTKT)", "so": "27/2026/HĐCG/STL-PHUDUCHUY", "ngay": "", "gt": 100000000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": false, "ben": "Phú Đức Huy"}]}, {"ten": "IA 25", "hd": [{"key": "bb-98", "nd": "GK Archi – TKCS + TKBVTC + BIM + Dự toán", "so": "05/2026/TVTK/STL-GK", "ngay": "", "gt": 3780000000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": false, "ben": "GK Archi"}]}, {"ten": "Ngọc Xuyên", "hd": [{"key": "bb-99", "nd": "QH (HTKT)", "so": "06/2026/HĐCG", "ngay": "12/02/2026", "gt": 22500000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": true, "ben": "Ông Mai Hữu Tốn"}, {"key": "bb-100", "nd": "VCCC – TKCS + TKBVTC (HTKT)", "so": "1809/2025/HĐTV/STL-VCCC", "ngay": "", "gt": null, "gt_note": "Chưa có giá trị trong bảng thống kê", "ghichu": "Chưa có hồ sơ HĐ", "scan": false, "ben": "VCCC"}]}, {"ten": "Vân Long", "hd": [{"key": "bb-101", "nd": "Đàm Minh Tâm – Điều chỉnh QH chung", "so": "…/2026/HĐCG/STL-DamMinhTam", "ngay": "", "gt": 90000000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": false, "ben": "Đàm Minh Tâm"}]}, {"ten": "Ô đất CCKO", "hd": [{"key": "bb-102", "nd": "QH (HTKT)", "so": "06/2026/HĐCG", "ngay": "12/02/2026", "gt": 22500000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": true, "ben": "Ông Mai Hữu Tốn"}]}, {"ten": "Minh Tân", "hd": [{"key": "bb-103", "nd": "QH (HTKT)", "so": "06/2026/HĐCG", "ngay": "12/02/2026", "gt": 22500000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": true, "ben": "Ông Mai Hữu Tốn"}, {"key": "bb-104", "nd": "Mai Thùy Dung – TKBVTC + Dự toán", "so": "01/2025/HĐCG/STL-MTD", "ngay": "", "gt": 120048115, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": false, "ben": "Mai Thùy Dung"}]}, {"ten": "NOXH Đông Anh", "hd": [{"key": "bb-105", "nd": "QH (HTKT)", "so": "06/2026/HĐCG", "ngay": "12/02/2026", "gt": 22500000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": true, "ben": "Ông Mai Hữu Tốn"}]}, {"ten": "NOXH Gia Lâm", "hd": [{"key": "bb-106", "nd": "QH (HTKT)", "so": "06/2026/HĐCG", "ngay": "12/02/2026", "gt": 22500000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": true, "ben": "Ông Mai Hữu Tốn"}]}, {"ten": "Chung", "hd": [{"key": "bb-107", "nd": "MIC Hà Thành – Bảo hiểm TNNN", "so": "051.KDBH.HD.TN22.26.812881", "ngay": "", "gt": 17500000, "gt_note": "", "ghichu": "Chưa có hồ sơ HĐ", "scan": false, "ben": "MIC Hà Thành"}]}]};
+const META = {updated:"14/10/2026", source:"Theo_doi_thong_tin_HD_Mau02a_v04_20261014"};
+const TABS = {
+  ab:{label:"A-B", sub:"Hợp đồng A-B đã có số hợp đồng, theo dự án", data:DATA.A,
+    steps:[["kh","Lập kế hoạch đấu thầu"],["bg","Báo giá với sếp"],["tt","Thương thảo ký kết hợp đồng"]]},
+  bb:{label:"B-B'", sub:"Hợp đồng B-B' (thầu phụ, chuyên gia, cộng tác viên), theo dự án", data:DATA.B,
+    steps:[["nv","Nhận nhiệm vụ thiết kế từ QLTK"],["mt","Mời thầu"],["hs","Tiếp nhận HSDT"],["kt","Đánh giá kỹ thuật"],["gi","Đánh giá về giá"],["d1","Đàm phán vòng 1"],["d2","Đàm phán vòng 2"],["tp","Trình phê duyệt kết quả LCNT"],["ky","Ký kết hợp đồng"],["ut","Tạm ứng"]]}
+};
+const SIGN = {signed:"Đã ký", resign:"Đang ký lại", nodate:"Đã ký, chưa rõ ngày", none:"Chưa có hợp đồng"};
+const PROG = {todo:"Chưa bắt đầu", doing:"Đang thực hiện", done:"Hoàn tất"};
+const state = {tab:"ab", f:"all", q:"", show:true, view:"card", open:new Set(), P:{"ab-23": {"kh": {"d": true, "t": ""}, "bg": {"d": true, "t": ""}, "tt": {"d": true, "t": ""}}, "ab-26": {"kh": {"d": true, "t": ""}, "bg": {"d": true, "t": ""}, "tt": {"d": true, "t": ""}}, "ab-29": {"kh": {"d": true, "t": ""}, "bg": {"d": true, "t": ""}, "tt": {"d": true, "t": ""}}, "ab-30": {"kh": {"d": true, "t": ""}, "bg": {"d": true, "t": ""}, "tt": {"d": true, "t": ""}}, "ab-32": {"kh": {"d": true, "t": ""}, "bg": {"d": true, "t": ""}, "tt": {"d": true, "t": ""}}, "ab-39": {"kh": {"d": true, "t": ""}, "bg": {"d": true, "t": ""}, "tt": {"d": true, "t": ""}}, "ab-40": {"kh": {"d": true, "t": ""}, "bg": {"d": true, "t": ""}, "tt": {"d": true, "t": ""}}, "ab-43": {"kh": {"d": true, "t": ""}, "bg": {"d": true, "t": ""}, "tt": {"d": true, "t": ""}}, "ab-44": {"kh": {"d": true, "t": ""}, "bg": {"d": true, "t": ""}, "tt": {"d": true, "t": ""}}, "ab-57": {"kh": {"d": true, "t": ""}, "bg": {"d": true, "t": ""}, "tt": {"d": true, "t": ""}}, "ab-58": {"kh": {"d": true, "t": ""}, "bg": {"d": true, "t": ""}, "tt": {"d": true, "t": ""}}, "ab-61": {"kh": {"d": true, "t": ""}, "bg": {"d": true, "t": ""}, "tt": {"d": true, "t": ""}}}, canWrite:false};
+let col = null;
+const $ = id => document.getElementById(id);
+const fmt = n => n==null ? "—" : n.toLocaleString("vi-VN");
+const money = n => n==null ? "—" : (state.show ? fmt(n)+" đ" : "••••••• đ");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const total = list => list.reduce((a,h)=>a+(h.gt||0),0);
+const T = () => TABS[state.tab];
+const stp = h => (state.P[h.key]||{});
+function pr(h){
+  const S=T().steps, s=stp(h); const done=S.filter(([k])=>s[k]&&s[k].d).length;
+  const cur=S.findIndex(([k])=>!(s[k]&&s[k].d));
+  return {done, n:S.length, cur, name: cur<0?"Hoàn tất":S[cur][1], k: done===0?"todo":(cur<0?"done":"doing")};
+}
+function dstr(t){ if(!t) return ""; const m=/^(\d{4})-(\d\d)-(\d\d)$/.exec(t); return m?`${m[3]}/${m[2]}/${m[1]}`:t; }
+function lineFilter(h){
+  if(state.tab==="ab") return state.f==="all"||h.st===state.f;
+  return state.f==="all"||pr(h).k===state.f;
+}
+function visibleProjects(){
+  const q=state.q.trim().toLowerCase();
+  return T().data.map(p=>({...p,hd:p.hd.filter(lineFilter)})).filter(p=>{
+    if(!p.hd.length) return false;
+    if(!q) return true;
+    return p.ten.toLowerCase().includes(q)||p.hd.some(h=>(h.so+" "+h.nd+" "+(h.ben||"")).toLowerCase().includes(q));
+  });
+}
+function renderChips(){
+  const all=T().data.flatMap(p=>p.hd);
+  const defs = state.tab==="ab" ? [["all","Tất cả"],...Object.entries(SIGN)] : [["all","Tất cả"],...Object.entries(PROG)];
+  const cnt=k=>k==="all"?all.length:all.filter(h=>state.tab==="ab"?h.st===k:pr(h).k===k).length;
+  $("chips").innerHTML=defs.map(([k,l])=>`<button class="chip" data-k="${k}" aria-pressed="${state.f===k}">${l}<span class="n">${cnt(k)}</span></button>`).join("");
+}
+function bar(h){
+  const S=T().steps,s=stp(h),p=pr(h);
+  return `<div class="prog" title="${p.done}/${p.n} bước">${S.map(([k],i)=>`<i class="${s[k]&&s[k].d?"d":(i===p.cur&&p.done>0?"c":"")}"></i>`).join("")}</div>`;
+}
+function stepsHtml(h){
+  const S=T().steps,s=stp(h),p=pr(h);
+  return `<div class="steps">${S.map(([k,l],i)=>{const v=s[k]||{};return `<div class="stp ${i===p.cur?"cur":""}"><input type="checkbox" data-key="${h.key}" data-s="${k}" ${v.d?"checked":""} ${state.canWrite?"":"disabled"} aria-label="${esc(l)}"><span class="lb">${esc(l)}</span><input type="date" data-key="${h.key}" data-t="${k}" value="${esc(v.t||"")}" ${state.canWrite?"":"disabled"} aria-label="Ngày ${esc(l)}"></div>`}).join("")}</div>`;
+}
+function lineHtml(h){
+  const p=pr(h);
+  const tag = state.tab==="ab" ? `<span class="tag s-${h.st}">${SIGN[h.st]}</span>` : `<span class="tag s-${p.k}">${PROG[p.k]}</span>`;
+  const ngay = state.tab==="ab"
+    ? (h.st==="signed"?h.ngay:h.st==="resign"?"Đang ký":h.st==="nodate"?"Chưa rõ ngày":"—")
+    : (h.ngay||"—");
+  const gtn = state.tab==="bb" && h.gt==null && h.gt_note ? `<div class="note">${esc(h.gt_note)}</div>` : "";
+  return `<div class="hd"><div class="r1"><div><div class="nd">${esc(h.nd)}</div><div class="so">${esc(h.so||"Chưa có số hợp đồng")}</div>${state.tab==="bb"&&h.ben?`<div class="ben">${esc(h.ben)}</div>`:""}</div>${tag}</div>
+  <div class="r2"><span>Ngày ký (danh mục): ${esc(ngay)}</span><span class="v">${money(h.gt)}</span></div>${gtn}
+  ${h.ghi_ngay?`<div class="note">${esc(h.ghi_ngay)}</div>`:""}
+  <div class="note">${esc(h.ghichu)}${h.scan?" · có bản scan":" · chưa có bản scan"}</div>
+  ${bar(h)}<div class="note">Tiến độ ${p.done}/${p.n} · ${esc(p.name)}</div>${stepsHtml(h)}</div>`;
+}
+function renderCards(ps){
+  if(!ps.length){$("out").innerHTML=`<div class="empty">Không tìm thấy dự án phù hợp.</div>`;return;}
+  $("out").innerHTML=`<div class="grid">${ps.map(p=>{
+    const open=state.open.has(p.ten);
+    const tags = state.tab==="ab"
+      ? Object.keys(SIGN).map(k=>{const n=p.hd.filter(h=>h.st===k).length;return n?`<span class="tag s-${k}">${n} ${SIGN[k].toLowerCase()}</span>`:""}).join("")
+      : Object.keys(PROG).map(k=>{const n=p.hd.filter(h=>pr(h).k===k).length;return n?`<span class="tag s-${k}">${n} ${PROG[k].toLowerCase()}</span>`:""}).join("");
+    const done=p.hd.reduce((a,h)=>a+pr(h).done,0), all=p.hd.length*T().steps.length;
+    const thieu = p.thieu&&p.thieu.length?`<div class="thieu">Chưa có hợp đồng: ${esc(p.thieu.join(", "))}</div>`:"";
+    return `<article class="card ${open?"open":""}" data-p="${esc(p.ten)}">
+      <button aria-expanded="${open}"><div class="ct"><h2>${esc(p.ten)}</h2><span class="caret">▶</span></div>
+      <div class="tags">${tags}</div>
+      <div class="kv"><span>${p.hd.length} hợp đồng · ${done}/${all} bước</span><span>${money(total(p.hd))}</span></div>
+      <div class="pic">PIC: —</div>${thieu}</button>
+      <div class="list">${p.hd.map(lineHtml).join("")}</div></article>`}).join("")}</div>`;
+}
+function renderTable(ps){
+  if(!ps.length){$("out").innerHTML=`<div class="empty">Không tìm thấy dự án phù hợp.</div>`;return;}
+  const ab=state.tab==="ab";
+  $("out").innerHTML=`<div class="tw"><table><thead><tr><th>Dự án</th><th>Nội dung</th><th>Số hợp đồng</th><th>${ab?"Trạng thái ký":"Thầu phụ"}</th><th>Ngày ký</th><th class="num">Giá trị HĐ</th><th>Bước hiện tại</th><th class="num">Tiến độ</th><th>PIC</th></tr></thead><tbody>${ps.map(p=>
+    `<tr class="pj"><td colspan="5">${esc(p.ten)} · ${p.hd.length} hợp đồng</td><td class="num m">${money(total(p.hd))}</td><td colspan="3"></td></tr>`+
+    p.hd.map(h=>{const q=pr(h);return `<tr><td></td><td>${esc(h.nd)}</td><td class="m">${esc(h.so||"—")}</td><td>${ab?`<span class="tag s-${h.st}">${SIGN[h.st]}</span>`:esc(h.ben||"—")}</td><td>${esc(ab?(h.st==="signed"?h.ngay:h.st==="resign"?"Đang ký":h.st==="nodate"?"Chưa rõ ngày":"—"):(h.ngay||"—"))}</td><td class="num m">${money(h.gt)}</td><td><span class="tag s-${q.k}">${esc(q.name)}</span></td><td class="num m">${q.done}/${q.n}</td><td></td></tr>`}).join("")).join("")}</tbody></table></div>`;
+}
+function render(){
+  $("sub").textContent=T().sub;
+  renderChips();
+  const ps=visibleProjects(), hd=ps.flatMap(p=>p.hd);
+  $("summary").innerHTML=`<span>Dự án <b>${ps.length}</b></span><span>Hợp đồng <b>${hd.length}</b></span><span>Tổng giá trị <b>${money(total(hd))}</b></span>`;
+  $("all").hidden=state.view!=="card";
+  $("all").textContent=ps.length&&ps.every(p=>state.open.has(p.ten))?"Thu tất cả":"Mở tất cả";
+  state.view==="card"?renderCards(ps):renderTable(ps);
+  $("vCard").setAttribute("aria-pressed",state.view==="card");
+  $("vTab").setAttribute("aria-pressed",state.view==="table");
+  $("vis").setAttribute("aria-pressed",state.show);
+  $("vis").textContent=state.show?"Ẩn giá trị":"Hiện giá trị";
+  $("tAB").setAttribute("aria-selected",state.tab==="ab");
+  $("tBB").setAttribute("aria-selected",state.tab==="bb");
+  $("ro").hidden=state.canWrite;
+}
+function setTab(t){state.tab=t;state.f="all";state.q="";$("q").value="";state.open=new Set();render();try{history.replaceState(null,"","#"+t)}catch(e){}}
+$("tAB").onclick=()=>setTab("ab"); $("tBB").onclick=()=>setTab("bb");
+$("chips").addEventListener("click",e=>{const b=e.target.closest(".chip");if(b){state.f=b.dataset.k;render()}});
+$("q").addEventListener("input",e=>{state.q=e.target.value;render()});
+$("vis").onclick=()=>{state.show=!state.show;render()};
+$("vCard").onclick=()=>{state.view="card";render()};
+$("vTab").onclick=()=>{state.view="table";render()};
+$("all").onclick=()=>{const ps=visibleProjects();const a=ps.every(p=>state.open.has(p.ten));ps.forEach(p=>a?state.open.delete(p.ten):state.open.add(p.ten));render()};
+$("out").addEventListener("click",e=>{
+  if(e.target.closest(".list")) return;
+  const c=e.target.closest(".card>button"); if(!c) return;
+  const k=c.parentElement.dataset.p; state.open.has(k)?state.open.delete(k):state.open.add(k); render();
+});
+function save(key){
+  if(!col) return;
+  const cur=state.P[key]||{};
+  col.doc(key).set({steps:cur,updated:new Date().toISOString()}).catch(()=>{state.canWrite=false;render();});
+}
+$("out").addEventListener("change",e=>{
+  const el=e.target, key=el.dataset.key; if(!key||!state.canWrite) return;
+  const cur=state.P[key]=state.P[key]||{};
+  if(el.dataset.s){ const s=el.dataset.s; cur[s]=cur[s]||{}; cur[s].d=el.checked; if(el.checked&&!cur[s].t){cur[s].t=new Date().toISOString().slice(0,10);} }
+  if(el.dataset.t){ const s=el.dataset.t; cur[s]=cur[s]||{}; cur[s].t=el.value; }
+  save(key); render();
+});
+$("upd").textContent=META.updated; $("srcname").textContent=META.source;
+if(location.hash==="#bb") state.tab="bb";
+render();
+
+</script>
