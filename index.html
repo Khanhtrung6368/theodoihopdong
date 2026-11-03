@@ -131,7 +131,7 @@ label.up{cursor:pointer;display:inline-block}
       <div class="sub" id="sub"></div>
     </div>
     <div class="meta">Danh mục cập nhật: <b id="upd"></b><br>Nguồn: <span id="srcname"></span>
-      <div class="who"><span id="who"></span><button class="btn" id="logout">Đăng xuất</button></div></div>
+      <div class="who"><span id="who"></span><button class="btn" id="chpw">Đổi mật khẩu</button><button class="btn" id="logout">Đăng xuất</button></div></div>
   </header>
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" id="tAB" aria-selected="true">Hợp đồng A-B</button>
@@ -190,8 +190,22 @@ function showLogin(err){
   <button class="btn" type="submit">Đăng nhập</button><div class="err" id="er">${esc(err||"")}</div></form>`);
   $("f1").onsubmit=async e=>{e.preventDefault(); $("er").textContent="";
     const {error}=await sb.auth.signInWithPassword({email:$("em").value.trim(),password:$("pw").value});
-    if(error){$("er").textContent="Sai email hoặc mật khẩu."; return;}
+    if(error){$("er").textContent="Sai email hoặc mật khẩu.";return;}
     route();};
+}
+function showChange(forced,session){
+  authView(`<h2>Đổi mật khẩu</h2><p>${forced?"Đây là lần đầu đăng nhập. Hãy đặt mật khẩu riêng của bạn.":"Nhập mật khẩu mới."} Tối thiểu 10 ký tự, khác mật khẩu mặc định.</p>
+  <form id="f5"><label for="p1">Mật khẩu mới</label><input id="p1" type="password" autocomplete="new-password" minlength="10" required>
+  <label for="p2">Nhập lại mật khẩu mới</label><input id="p2" type="password" autocomplete="new-password" minlength="10" required>
+  <button class="btn" type="submit">Lưu mật khẩu</button><div class="err" id="er"></div></form>${forced?"":'<button class="lnk" id="bk">Quay lại</button>'}`);
+  if(!forced) $("bk").onclick=()=>start(session);
+  $("f5").onsubmit=async e=>{e.preventDefault(); $("er").textContent="";
+    const a=$("p1").value,b=$("p2").value;
+    if(a!==b){$("er").textContent="Hai mật khẩu không giống nhau.";return;}
+    if(a.length<10){$("er").textContent="Mật khẩu cần tối thiểu 10 ký tự.";return;}
+    const {error}=await sb.auth.updateUser({password:a,data:{pw_changed:true}});
+    if(error){$("er").textContent=/same|different/i.test(error.message)?"Mật khẩu mới phải khác mật khẩu hiện tại.":"Không đổi được mật khẩu: "+error.message;return;}
+    const {data:{session:s2}}=await sb.auth.getSession(); start(s2);};
 }
 async function showVerify(){
   const {data:fl}=await sb.auth.mfa.listFactors();
@@ -251,6 +265,9 @@ async function loadAll(){
   return true;
 }
 async function start(session){
+  const meta=session.user.user_metadata||{};
+  const isAdm=await sb.from("admins").select("user_id").eq("user_id",session.user.id);
+  if(!meta.pw_changed && !(isAdm.data&&isAdm.data.length)){showChange(true,session);return;}
   $("auth").hidden=true; $("app").hidden=false;
   $("who").textContent=session.user.email;
   const a=await sb.from("admins").select("user_id").eq("user_id",session.user.id);
@@ -360,6 +377,7 @@ $("vis").onclick=()=>{state.show=!state.show;render()};
 $("vCard").onclick=()=>{state.view="card";render()};
 $("vTab").onclick=()=>{state.view="table";render()};
 $("logout").onclick=logout;
+$("chpw").onclick=async()=>{const {data:{session}}=await sb.auth.getSession();showChange(false,session)};
 $("all").onclick=()=>{const ps=visibleProjects();const a=ps.every(p=>state.open.has(p.ten));ps.forEach(p=>a?state.open.delete(p.ten):state.open.add(p.ten));render()};
 
 async function openFile(key){
