@@ -204,15 +204,15 @@ function showLogin(err){
     route();};
 }
 function showChange(forced,session){
-  authView(`<h2>Đổi mật khẩu</h2><p>${forced?"Đây là lần đầu đăng nhập. Hãy đặt mật khẩu riêng của bạn.":"Nhập mật khẩu mới."} Tối thiểu 10 ký tự, khác mật khẩu mặc định.</p>
-  <form id="f5"><label for="p1">Mật khẩu mới</label><input id="p1" type="password" autocomplete="new-password" minlength="10" required>
-  <label for="p2">Nhập lại mật khẩu mới</label><input id="p2" type="password" autocomplete="new-password" minlength="10" required>
+  authView(`<h2>Đổi mật khẩu</h2><p>${forced?"Đây là lần đầu đăng nhập. Hãy đặt mật khẩu riêng của bạn.":"Nhập mật khẩu mới."} Tối thiểu 6 ký tự, khác mật khẩu được cấp.</p>
+  <form id="f5"><label for="p1">Mật khẩu mới</label><input id="p1" type="password" autocomplete="new-password" minlength="6" required>
+  <label for="p2">Nhập lại mật khẩu mới</label><input id="p2" type="password" autocomplete="new-password" minlength="6" required>
   <button class="btn" type="submit">Lưu mật khẩu</button><div class="err" id="er"></div></form>${forced?"":'<button class="lnk" id="bk">Quay lại</button>'}`);
   if(!forced) $("bk").onclick=()=>start(session);
   $("f5").onsubmit=async e=>{e.preventDefault(); $("er").textContent="";
     const a=$("p1").value,b=$("p2").value;
     if(a!==b){$("er").textContent="Hai mật khẩu không giống nhau.";return;}
-    if(a.length<10){$("er").textContent="Mật khẩu cần tối thiểu 10 ký tự.";return;}
+    if(a.length<6){$("er").textContent="Mật khẩu cần tối thiểu 6 ký tự.";return;}
     const {error}=await sb.auth.updateUser({password:a,data:{pw_changed:true}});
     if(error){$("er").textContent=/same|different/i.test(error.message)?"Mật khẩu mới phải khác mật khẩu hiện tại.":"Không đổi được mật khẩu: "+error.message;return;}
     const {data:{session:s2}}=await sb.auth.getSession(); start(s2);};
