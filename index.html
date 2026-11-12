@@ -82,7 +82,7 @@ input[type=search]{font:inherit;font-size:13px;padding:6px 10px;border:1px solid
 table{border-collapse:collapse;width:100%;min-width:860px;font-size:13px}
 th{position:sticky;top:0;text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:9px 12px;border-bottom:2px solid var(--fg);background:var(--surface);font-weight:600;white-space:nowrap}
 td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
-td.num,th.num{text-align:right}
+td.num,th.num{text-align:right;white-space:nowrap}
 td.m{font-family:var(--mono);font-size:12px;overflow-wrap:anywhere}
 tr.pj td{background:var(--accent-soft);font-weight:600}
 .empty{padding:32px 0;text-align:center;color:var(--muted)}
@@ -121,6 +121,20 @@ footer{margin-top:28px;padding-top:12px;border-top:1px solid var(--line);font-si
 .who{margin-top:6px;font-size:12px;display:flex;gap:8px;align-items:center;justify-content:flex-end}
 .doc{margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 label.up{cursor:pointer;display:inline-block}
+
+.s-ok{background:var(--ok-bg);color:var(--ok)}
+.s-tl{background:var(--info-bg);color:var(--info)}
+.s-mot{background:var(--warn-bg);color:var(--warn)}
+.s-chua{background:var(--bad-bg);color:var(--bad)}
+.s-none{background:var(--line);color:var(--muted)}
+select{font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg);max-width:220px}
+.files{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.files .btn{font-size:12px;padding:3px 9px}
+.files .off{font-size:12px;color:var(--muted);padding:3px 0}
+.ask{color:var(--bad)}
+.upbox{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:13px}
+.upbox[hidden]{display:none}
+.upbox .log{font-family:var(--mono);font-size:12px;max-height:180px;overflow:auto;margin-top:8px;white-space:pre-wrap;color:var(--muted)}
 </style></head><body>
 <div id="auth" class="auth" hidden></div>
 <div class="wrap" id="app" hidden>
@@ -138,21 +152,24 @@ label.up{cursor:pointer;display:inline-block}
     <button class="tab" role="tab" id="tBB" aria-selected="false">Hợp đồng B-B'</button>
   </div>
   <div class="bar">
-    <div class="chips" id="chips" role="group" aria-label="Lọc"></div>
-    <input type="search" id="q" placeholder="Tìm dự án, số hợp đồng" aria-label="Tìm kiếm">
+    <div class="chips" id="chips" role="group" aria-label="Lọc theo tình trạng"></div>
+    <select id="pj" aria-label="Lọc theo dự án"></select>
+    <input type="search" id="q" placeholder="Tìm dự án, số hợp đồng, đối tác" aria-label="Tìm kiếm">
     <button class="btn" id="vis" aria-pressed="true">Ẩn giá trị</button>
     <div class="seg" role="group" aria-label="Chế độ xem">
       <button class="btn" id="vCard" aria-pressed="true">Thẻ</button>
       <button class="btn" id="vTab" aria-pressed="false">Bảng</button>
     </div>
     <button class="btn" id="all" hidden>Mở tất cả</button>
+    <label class="btn up" id="bulk" hidden>Tải bản scan hàng loạt<input type="file" id="bulkin" accept="application/pdf" multiple hidden></label>
   </div>
   <div id="ro" class="banner" hidden>Tài khoản này chỉ có quyền xem.</div>
   <div id="msg" class="banner" hidden></div>
+  <div id="upbox" class="upbox" hidden><b id="uptitle"></b><div class="log" id="uplog"></div></div>
   <div class="summary" id="summary"></div>
   <div id="out"></div>
   <footer>
-    <span>© 2026 Công ty CP Thiết kế Xây dựng Stellar. Giá trị hợp đồng theo cột "Giá trị hợp đồng" của danh mục, đơn vị đồng.</span>
+    <span>© 2026 Công ty CP Thiết kế Xây dựng Stellar. Giá trị hợp đồng theo bảng thống kê v05, đơn vị đồng.</span>
     <span>Chỉ người được cấp quyền mới xem được.</span>
   </footer>
 </div>
@@ -162,25 +179,18 @@ const SB_URL = "https://gvjhhvhderpszhgnreto.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2amhodmhkZXJwc3poZ25yZXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2MDQxMjksImV4cCI6MjEwOTE4MDEyOX0.xG7iYyyY3wiuJjfvYiyQQca42obHqrpgSmYkPtamjgw";
 const sb = supabase.createClient(SB_URL, SB_KEY);
 let DATA = {A:[], B:[]};
-const META = {updated:"14/10/2026", source:"Theo_doi_thong_tin_HD_Mau02a_v04_20261014"};
-const TABS = {
-  ab:{sub:"Hợp đồng A-B đã có số hợp đồng, theo dự án", key:"A",
-    steps:[["kh","Lập kế hoạch đấu thầu"],["bg","Báo giá với sếp"],["tt","Thương thảo ký kết hợp đồng"]]},
-  bb:{sub:"Hợp đồng B-B' (thầu phụ, chuyên gia, cộng tác viên), theo dự án", key:"B",
-    steps:[["nv","Nhận nhiệm vụ thiết kế từ QLTK"],["mt","Mời thầu"],["hs","Tiếp nhận HSDT"],["kt","Đánh giá kỹ thuật"],["gi","Đánh giá về giá"],["d1","Đàm phán vòng 1"],["d2","Đàm phán vòng 2"],["tp","Trình phê duyệt kết quả LCNT"],["ky","Ký kết hợp đồng"],["ut","Tạm ứng"]]}
-};
-const SIGN = {signed:"Đã ký", resign:"Đang ký lại", nodate:"Đã ký, chưa rõ ngày", none:"Chưa có hợp đồng"};
-const PROG = {todo:"Chưa bắt đầu", doing:"Đang thực hiện", done:"Hoàn tất"};
-const state = {tab:"ab", f:"all", q:"", show:true, view:"card", open:new Set(), P:{}, files:{}, canWrite:false};
+const META = {updated:"12/11/2026", source:"Bang_thong_ke_hop_dong_A-B_va_B-B_cac_du_an_v05_261112"};
+const TABS = {ab:{sub:"Hợp đồng A-B (Stellar với chủ đầu tư), theo dự án", key:"A"}, bb:{sub:"Hợp đồng B-B' (thầu phụ, chuyên gia và các hợp đồng khác), theo dự án", key:"B"}};
+const ST = {ok:"Đã có bản scan", tl:"Đã thanh lý", mot:"Chỉ có bản 1 dấu", chua:"Chưa có bản scan", none:"Chưa ký HĐ"};
+const state = {tab:"ab", f:"all", pj:"", q:"", show:true, view:"card", open:new Set(), files:{}, canWrite:false};
 const $ = id => document.getElementById(id);
-const fmt = n => n==null ? "—" : n.toLocaleString("vi-VN");
+const fmt = n => n==null ? "—" : Math.round(n).toLocaleString("vi-VN");
 const money = n => n==null ? "—" : (state.show ? fmt(n)+" đ" : "••••••• đ");
-const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const esc = s => String(s==null?"":s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const total = list => list.reduce((a,h)=>a+(h.gt||0),0);
 const T = () => TABS[state.tab];
 const lst = () => DATA[T().key];
-const stp = h => (state.P[h.key]||{});
-
+const stem = n => n.replace(/\.pdf$/i,"");
 /* ---------- Đăng nhập, mật khẩu, mã Authenticator ---------- */
 function authView(html){ $("app").hidden=true; const a=$("auth"); a.hidden=false; a.innerHTML=html; }
 function showLogin(err){
@@ -240,7 +250,7 @@ async function showEnroll(){
     if(v.error){$("er").textContent="Mã sai hoặc đã hết hạn.";return;}
     route();};
 }
-async function logout(){ await sb.auth.signOut(); DATA={A:[],B:[]}; state.P={}; state.files={}; showLogin(); }
+async function logout(){ await sb.auth.signOut(); DATA={A:[],B:[]}; state.files={}; showLogin(); }
 async function route(){
   const {data:{session}}=await sb.auth.getSession();
   if(!session){showLogin();return;}
@@ -252,26 +262,20 @@ async function route(){
 
 /* ---------- Dữ liệu ---------- */
 async function loadAll(){
-  const [d,p,f]=await Promise.all([
-    sb.from("du_lieu").select("id,payload"),
-    sb.from("tien_do").select("key,steps"),
-    sb.from("hop_dong_file").select("key,path,ten_file")
-  ]);
+  const [d,f]=await Promise.all([ sb.from("du_lieu").select("id,payload"), sb.from("hop_dong_file").select("key,path,ten_file") ]);
   if(d.error||!d.data||!d.data.length){return false;}
   DATA={A:[],B:[]};
   d.data.forEach(r=>{ if(r.id==="ab")DATA.A=r.payload; if(r.id==="bb")DATA.B=r.payload; });
-  state.P={}; (p.data||[]).forEach(r=>state.P[r.key]=r.steps||{});
   state.files={}; (f.data||[]).forEach(r=>state.files[r.key]=r);
   return true;
 }
 async function start(session){
   const meta=session.user.user_metadata||{};
   const isAdm=await sb.from("admins").select("user_id").eq("user_id",session.user.id);
-  if(!meta.pw_changed && !(isAdm.data&&isAdm.data.length)){showChange(true,session);return;}
+  state.canWrite=!!(isAdm.data&&isAdm.data.length);
+  if(!meta.pw_changed && !state.canWrite){showChange(true,session);return;}
   $("auth").hidden=true; $("app").hidden=false;
   $("who").textContent=session.user.email;
-  const a=await sb.from("admins").select("user_id").eq("user_id",session.user.id);
-  state.canWrite=!!(a.data&&a.data.length);
   const ok=await loadAll();
   $("msg").hidden=ok; if(!ok) $("msg").textContent="Không tải được dữ liệu. Tài khoản chưa được cấp quyền hoặc chưa qua bước Authenticator.";
   $("upd").textContent=META.updated; $("srcname").textContent=META.source;
@@ -280,84 +284,65 @@ async function start(session){
 }
 
 /* ---------- Giao diện ---------- */
-function pr(h){
-  const S=T().steps, s=stp(h); const done=S.filter(([k])=>s[k]&&s[k].d).length;
-  const cur=S.findIndex(([k])=>!(s[k]&&s[k].d));
-  return {done, n:S.length, cur, name: cur<0?"Hoàn tất":S[cur][1], k: done===0?"todo":(cur<0?"done":"doing")};
+function fileLabel(n,i,isOld){
+  if(isOld) return "HĐ cũ đã thay thế";
+  const p=stem(n).split("_"); const sc=p[2]||"";
+  if(/^BBTL/.test(sc)) return "Biên bản thanh lý";
+  if(/^PL/.test(sc)) return sc.replace(/-HD.*$/,"").replace("PLHD","PLHĐ ");
+  if(/^ThoaThuan/.test(sc)) return "Thỏa thuận";
+  return i===0 ? "Hợp đồng" : "Tài liệu kèm";
 }
-function lineFilter(h){
-  if(state.tab==="ab") return state.f==="all"||h.st===state.f;
-  return state.f==="all"||pr(h).k===state.f;
+function filesHtml(h){
+  const L=[...h.files.map((n,i)=>[n,fileLabel(n,i,false)]), ...(h.cu||[]).map(n=>[n,fileLabel(n,0,true)])];
+  if(!L.length) return "";
+  return `<div class="files">${L.map(([n,l])=>state.files[stem(n)]
+     ? `<button class="btn" data-open="${esc(stem(n))}" title="${esc(n)}">Đọc ${esc(l.toLowerCase())}</button>`
+     : `<span class="off" title="${esc(n)}">${esc(l)}: chưa tải lên web</span>`).join("")}</div>`;
 }
-function visibleProjects(){
-  const q=state.q.trim().toLowerCase();
-  return lst().map(p=>({...p,hd:p.hd.filter(lineFilter)})).filter(p=>{
-    if(!p.hd.length) return false;
-    if(!q) return true;
-    return p.ten.toLowerCase().includes(q)||p.hd.some(h=>(h.so+" "+h.nd+" "+(h.ben||"")).toLowerCase().includes(q));
-  });
+function hit(h,p){
+  if(state.f!=="all"&&h.k!==state.f) return false;
+  if(state.pj&&p.ten!==state.pj) return false;
+  const q=state.q.trim().toLowerCase(); if(!q) return true;
+  return (p.ten+" "+(h.nd||"")+" "+(h.so||"")).toLowerCase().includes(q);
 }
+function visibleProjects(){ return lst().map(p=>({...p,hd:p.hd.filter(h=>hit(h,p))})).filter(p=>p.hd.length); }
 function renderChips(){
-  const all=lst().flatMap(p=>p.hd);
-  const defs = state.tab==="ab" ? [["all","Tất cả"],...Object.entries(SIGN)] : [["all","Tất cả"],...Object.entries(PROG)];
-  const cnt=k=>k==="all"?all.length:all.filter(h=>state.tab==="ab"?h.st===k:pr(h).k===k).length;
-  $("chips").innerHTML=defs.map(([k,l])=>`<button class="chip" data-k="${k}" aria-pressed="${state.f===k}">${l}<span class="n">${cnt(k)}</span></button>`).join("");
-}
-function bar(h){
-  const S=T().steps,s=stp(h),p=pr(h);
-  return `<div class="prog" title="${p.done}/${p.n} bước">${S.map(([k],i)=>`<i class="${s[k]&&s[k].d?"d":(i===p.cur&&p.done>0?"c":"")}"></i>`).join("")}</div>`;
-}
-function stepsHtml(h){
-  const S=T().steps,s=stp(h),p=pr(h);
-  return `<div class="steps">${S.map(([k,l],i)=>{const v=s[k]||{};return `<div class="stp ${i===p.cur?"cur":""}"><input type="checkbox" data-key="${h.key}" data-s="${k}" ${v.d?"checked":""} ${state.canWrite?"":"disabled"} aria-label="${esc(l)}"><span class="lb">${esc(l)}</span><input type="date" data-key="${h.key}" data-t="${k}" value="${esc(v.t||"")}" ${state.canWrite?"":"disabled"} aria-label="Ngày ${esc(l)}"></div>`}).join("")}</div>`;
-}
-function docHtml(h){
-  const f=state.files[h.key];
-  return `<div class="doc">${f?`<button class="btn" data-open="${h.key}">Đọc hợp đồng</button>`:`<span class="note">Chưa có bản scan trên web</span>`}${state.canWrite?`<label class="btn up">${f?"Thay file PDF":"Tải file PDF"}<input type="file" accept="application/pdf" data-up="${h.key}" hidden></label>`:""}</div>`;
-}
-function dateText(h){
-  return state.tab==="ab"
-    ? (h.st==="signed"?h.ngay:h.st==="resign"?"Đang ký":h.st==="nodate"?"Chưa rõ ngày":"—")
-    : (h.ngay||"—");
+  const all=lst().flatMap(p=>p.hd.filter(h=>!state.pj||p.ten===state.pj));
+  const defs=[["all","Tất cả"],...Object.entries(ST)];
+  const cnt=k=>k==="all"?all.length:all.filter(h=>h.k===k).length;
+  $("chips").innerHTML=defs.filter(([k])=>k==="all"||cnt(k)).map(([k,l])=>`<button class="chip" data-k="${k}" aria-pressed="${state.f===k}">${l}<span class="n">${cnt(k)}</span></button>`).join("");
+  const names=lst().map(p=>p.ten);
+  $("pj").innerHTML=`<option value="">Tất cả dự án (${names.length})</option>`+names.map(n=>`<option ${n===state.pj?"selected":""}>${esc(n)}</option>`).join("");
 }
 function lineHtml(h){
-  const p=pr(h);
-  const tag = state.tab==="ab" ? `<span class="tag s-${h.st}">${SIGN[h.st]}</span>` : `<span class="tag s-${p.k}">${PROG[p.k]}</span>`;
-  const gtn = state.tab==="bb" && h.gt==null && h.gt_note ? `<div class="note">${esc(h.gt_note)}</div>` : "";
-  return `<div class="hd"><div class="r1"><div><div class="nd">${esc(h.nd)}</div><div class="so">${esc(h.so||"Chưa có số hợp đồng")}</div>${state.tab==="bb"&&h.ben?`<div class="ben">${esc(h.ben)}</div>`:""}</div>${tag}</div>
-  <div class="r2"><span>Ngày ký (danh mục): ${esc(dateText(h))}</span><span class="v">${money(h.gt)}</span></div>${gtn}
-  ${h.ghi_ngay?`<div class="note">${esc(h.ghi_ngay)}</div>`:""}
-  <div class="note">${esc(h.ghichu)}</div>${docHtml(h)}
-  ${bar(h)}<div class="note">Tiến độ ${p.done}/${p.n} · ${esc(p.name)}</div>${stepsHtml(h)}</div>`;
+  return `<div class="hd"><div class="r1"><div><div class="nd">${esc(h.nd||"—")}</div><div class="so ${h.ask?"ask":""}">${esc(h.so||(h.ask?"Chờ bổ sung số HĐ":"Chưa có số hợp đồng"))}</div></div><span class="tag s-${h.k}">${ST[h.k]}</span></div>
+  <div class="r2"><span>Ngày ký: ${esc(h.ngay||"—")}</span><span class="v ${h.ask&&h.gt==null?"ask":""}">${h.gt==null&&h.ask?"Chờ bổ sung":money(h.gt)}</span></div>
+  ${h.tt_scan&&h.k!=="ok"?`<div class="note">${esc(h.tt_scan)}</div>`:""}
+  ${h.ghichu?`<div class="note">${esc(h.ghichu)}</div>`:""}${h.xl?`<div class="note">${esc(h.xl)}</div>`:""}
+  ${filesHtml(h)}</div>`;
 }
 function renderCards(ps){
-  if(!ps.length){$("out").innerHTML=`<div class="empty">Không tìm thấy dự án phù hợp.</div>`;return;}
+  if(!ps.length){$("out").innerHTML=`<div class="empty">Không tìm thấy hợp đồng phù hợp.</div>`;return;}
   $("out").innerHTML=`<div class="grid">${ps.map(p=>{
     const open=state.open.has(p.ten);
-    const tags = state.tab==="ab"
-      ? Object.keys(SIGN).map(k=>{const n=p.hd.filter(h=>h.st===k).length;return n?`<span class="tag s-${k}">${n} ${SIGN[k].toLowerCase()}</span>`:""}).join("")
-      : Object.keys(PROG).map(k=>{const n=p.hd.filter(h=>pr(h).k===k).length;return n?`<span class="tag s-${k}">${n} ${PROG[k].toLowerCase()}</span>`:""}).join("");
-    const done=p.hd.reduce((a,h)=>a+pr(h).done,0), all=p.hd.length*T().steps.length;
-    const thieu = p.thieu&&p.thieu.length?`<div class="thieu">Chưa có hợp đồng: ${esc(p.thieu.join(", "))}</div>`:"";
+    const tags=Object.keys(ST).map(k=>{const n=p.hd.filter(h=>h.k===k).length;return n?`<span class="tag s-${k}">${n} ${ST[k].toLowerCase()}</span>`:""}).join("");
     return `<article class="card ${open?"open":""}" data-p="${esc(p.ten)}">
       <button aria-expanded="${open}"><div class="ct"><h2>${esc(p.ten)}</h2><span class="caret">▶</span></div>
       <div class="tags">${tags}</div>
-      <div class="kv"><span>${p.hd.length} hợp đồng · ${done}/${all} bước</span><span>${money(total(p.hd))}</span></div>
-      <div class="pic">PIC: —</div>${thieu}</button>
+      <div class="kv"><span>${p.hd.length} hợp đồng</span><span>${money(total(p.hd))}</span></div></button>
       <div class="list">${p.hd.map(lineHtml).join("")}</div></article>`}).join("")}</div>`;
 }
 function renderTable(ps){
-  if(!ps.length){$("out").innerHTML=`<div class="empty">Không tìm thấy dự án phù hợp.</div>`;return;}
-  const ab=state.tab==="ab";
-  $("out").innerHTML=`<div class="tw"><table><thead><tr><th>Dự án</th><th>Nội dung</th><th>Số hợp đồng</th><th>${ab?"Trạng thái ký":"Thầu phụ"}</th><th>Ngày ký</th><th class="num">Giá trị HĐ</th><th>Bước hiện tại</th><th class="num">Tiến độ</th><th>Hợp đồng</th></tr></thead><tbody>${ps.map(p=>
-    `<tr class="pj"><td colspan="5">${esc(p.ten)} · ${p.hd.length} hợp đồng</td><td class="num m">${money(total(p.hd))}</td><td colspan="3"></td></tr>`+
-    p.hd.map(h=>{const q=pr(h);return `<tr><td></td><td>${esc(h.nd)}</td><td class="m">${esc(h.so||"—")}</td><td>${ab?`<span class="tag s-${h.st}">${SIGN[h.st]}</span>`:esc(h.ben||"—")}</td><td>${esc(dateText(h))}${h.ghi_ngay?`<div class="note">${esc(h.ghi_ngay)}</div>`:""}</td><td class="num m">${money(h.gt)}</td><td><span class="tag s-${q.k}">${esc(q.name)}</span></td><td class="num m">${q.done}/${q.n}</td><td>${state.files[h.key]?`<button class="btn" data-open="${h.key}">Đọc</button>`:"—"}</td></tr>`}).join("")).join("")}</tbody></table></div>`;
+  if(!ps.length){$("out").innerHTML=`<div class="empty">Không tìm thấy hợp đồng phù hợp.</div>`;return;}
+  $("out").innerHTML=`<div class="tw"><table><thead><tr><th>Dự án</th><th>Nội dung</th><th>Số hợp đồng</th><th>Tình trạng</th><th>Ngày ký</th><th class="num">Giá trị HĐ</th><th>Bản scan</th></tr></thead><tbody>${ps.map(p=>
+    `<tr class="pj"><td colspan="5">${esc(p.ten)} · ${p.hd.length} hợp đồng</td><td class="num m">${money(total(p.hd))}</td><td></td></tr>`+
+    p.hd.map(h=>{const f=h.files[0]&&state.files[stem(h.files[0])];return `<tr><td></td><td>${esc(h.nd||"—")}</td><td class="m ${h.ask?"ask":""}">${esc(h.so||(h.ask?"Chờ bổ sung":"—"))}</td><td><span class="tag s-${h.k}">${ST[h.k]}</span></td><td>${esc(h.ngay||"—")}</td><td class="num m">${money(h.gt)}</td><td>${f?`<button class="btn" data-open="${esc(stem(h.files[0]))}">Đọc</button>`:(h.files.length?"Chưa tải":"—")}</td></tr>`}).join("")).join("")}</tbody></table></div>`;
 }
 function render(){
   $("sub").textContent=T().sub;
   renderChips();
-  const ps=visibleProjects(), hd=ps.flatMap(p=>p.hd);
-  $("summary").innerHTML=`<span>Dự án <b>${ps.length}</b></span><span>Hợp đồng <b>${hd.length}</b></span><span>Tổng giá trị <b>${money(total(hd))}</b></span>`;
+  const ps=visibleProjects(), hd=ps.flatMap(p=>p.hd), tl=hd.filter(h=>h.k==="tl");
+  $("summary").innerHTML=`<span>Dự án <b>${ps.length}</b></span><span>Hợp đồng <b>${hd.length}</b></span><span>Tổng giá trị <b>${money(total(hd))}</b></span>${tl.length?`<span>Trong đó đã thanh lý <b>${money(total(tl))}</b></span>`:""}`;
   $("all").hidden=state.view!=="card";
   $("all").textContent=ps.length&&ps.every(p=>state.open.has(p.ten))?"Thu tất cả":"Mở tất cả";
   state.view==="card"?renderCards(ps):renderTable(ps);
@@ -367,11 +352,12 @@ function render(){
   $("vis").textContent=state.show?"Ẩn giá trị":"Hiện giá trị";
   $("tAB").setAttribute("aria-selected",state.tab==="ab");
   $("tBB").setAttribute("aria-selected",state.tab==="bb");
-  $("ro").hidden=state.canWrite;
+  $("ro").hidden=state.canWrite; $("bulk").hidden=!state.canWrite;
 }
-function setTab(t){state.tab=t;state.f="all";state.q="";$("q").value="";state.open=new Set();render();try{history.replaceState(null,"","#"+t)}catch(e){}}
+function setTab(t){state.tab=t;state.f="all";state.pj="";state.q="";$("q").value="";state.open=new Set();render();try{history.replaceState(null,"","#"+t)}catch(e){}}
 $("tAB").onclick=()=>setTab("ab"); $("tBB").onclick=()=>setTab("bb");
 $("chips").addEventListener("click",e=>{const b=e.target.closest(".chip");if(b){state.f=b.dataset.k;render()}});
+$("pj").onchange=e=>{state.pj=e.target.value;state.f="all";if(state.pj)state.open.add(state.pj);render()};
 $("q").addEventListener("input",e=>{state.q=e.target.value;render()});
 $("vis").onclick=()=>{state.show=!state.show;render()};
 $("vCard").onclick=()=>{state.view="card";render()};
@@ -387,34 +373,31 @@ async function openFile(key){
   if(r.error||!r.data){ if(w) w.close(); $("msg").hidden=false; $("msg").textContent="Không mở được file hợp đồng. Phiên đăng nhập có thể đã hết hạn."; return; }
   if(w){ w.opener=null; w.location=r.data.signedUrl; } else { location.href=r.data.signedUrl; }
 }
-async function uploadFile(key,file){
-  if(!state.canWrite||!file) return;
-  if(file.type!=="application/pdf"){ $("msg").hidden=false; $("msg").textContent="Chỉ nhận file PDF."; return; }
-  const path=key+".pdf";
-  const up=await sb.storage.from("hopdong").upload(path,file,{upsert:true,contentType:"application/pdf"});
-  if(up.error){ $("msg").hidden=false; $("msg").textContent="Tải lên lỗi: "+up.error.message; return; }
-  const r=await sb.from("hop_dong_file").upsert({key,path,ten_file:file.name,updated_at:new Date().toISOString()});
-  if(r.error){ $("msg").hidden=false; $("msg").textContent="Lưu thông tin file lỗi: "+r.error.message; return; }
-  $("msg").hidden=true; state.files[key]={key,path,ten_file:file.name}; render();
+/* Tải hàng loạt: chọn các file PDF trong thư mục "HĐ scan 2 dấu", trang tự ghép theo tên file */
+function knownFiles(){ const s=new Set(); for(const t of ["A","B"]) for(const p of DATA[t]) for(const h of p.hd) for(const n of [...h.files,...(h.cu||[])]) s.add(n); return s; }
+async function bulkUpload(list){
+  if(!state.canWrite||!list.length) return;
+  const known=knownFiles(); const box=$("upbox"), log=$("uplog"); box.hidden=false; log.textContent="";
+  const files=[...list]; let ok=0, skip=0, bad=0;
+  for(let i=0;i<files.length;i++){
+    const file=files[i]; $("uptitle").textContent=`Đang tải ${i+1}/${files.length}…`;
+    if(!known.has(file.name)){ skip++; log.textContent+=`Bỏ qua (không có trong danh mục): ${file.name}\n`; continue; }
+    if(state.files[stem(file.name)]){ skip++; log.textContent+=`Đã có trên web: ${file.name}\n`; continue; }
+    const up=await sb.storage.from("hopdong").upload(file.name,file,{upsert:true,contentType:"application/pdf"});
+    if(up.error){ bad++; log.textContent+=`LỖI ${file.name}: ${up.error.message}\n`; continue; }
+    const r=await sb.from("hop_dong_file").upsert({key:stem(file.name),path:file.name,ten_file:file.name,updated_at:new Date().toISOString()});
+    if(r.error){ bad++; log.textContent+=`LỖI lưu thông tin ${file.name}: ${r.error.message}\n`; continue; }
+    state.files[stem(file.name)]={key:stem(file.name),path:file.name,ten_file:file.name}; ok++;
+  }
+  $("uptitle").textContent=`Xong: tải lên ${ok} file, bỏ qua ${skip}, lỗi ${bad}.`;
+  $("bulkin").value=""; render();
 }
-async function saveProgress(key){
-  const r=await sb.from("tien_do").upsert({key,steps:state.P[key]||{},updated_at:new Date().toISOString()});
-  if(r.error){ $("msg").hidden=false; $("msg").textContent="Lưu tiến độ lỗi: "+r.error.message; }
-}
+$("bulkin").addEventListener("change",e=>bulkUpload(e.target.files));
 $("out").addEventListener("click",e=>{
   const o=e.target.closest("[data-open]"); if(o){openFile(o.dataset.open);return;}
   if(e.target.closest(".list")) return;
   const c=e.target.closest(".card>button"); if(!c) return;
   const k=c.parentElement.dataset.p; state.open.has(k)?state.open.delete(k):state.open.add(k); render();
-});
-$("out").addEventListener("change",e=>{
-  const el=e.target;
-  if(el.dataset.up){ uploadFile(el.dataset.up, el.files[0]); return; }
-  const key=el.dataset.key; if(!key||!state.canWrite) return;
-  const cur=state.P[key]=state.P[key]||{};
-  if(el.dataset.s){ const s=el.dataset.s; cur[s]=cur[s]||{}; cur[s].d=el.checked; if(el.checked&&!cur[s].t){cur[s].t=new Date().toISOString().slice(0,10);} }
-  if(el.dataset.t){ const s=el.dataset.t; cur[s]=cur[s]||{}; cur[s].t=el.value; }
-  saveProgress(key); render();
 });
 sb.auth.onAuthStateChange((ev)=>{ if(ev==="SIGNED_OUT"){ showLogin(); } });
 route();
