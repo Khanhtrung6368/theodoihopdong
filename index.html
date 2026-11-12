@@ -8,7 +8,7 @@
 /* Bố cục: thanh tiêu đề, dải lọc theo trạng thái, lưới thẻ theo dự án (bấm để mở danh sách hợp đồng), chế độ Bảng theo từng hợp đồng. */
 :root{
   --bg:#f4f5f7; --surface:#ffffff; --fg:#14213d; --muted:#5b6678; --line:#d9dde4;
-  --accent:#1f4e8c; --accent-soft:#e6eef8;
+  --accent:#1f4e8c; --accent-soft:#e6eef8; --on-accent:#ffffff;
   --ok:#1b7a4b; --ok-bg:#e3f3ea;
   --warn:#9a5b00; --warn-bg:#fbefd5;
   --info:#3b5a8f; --info-bg:#e6ecf7;
@@ -18,12 +18,12 @@
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#0f1624; --surface:#172034; --fg:#e8ecf4; --muted:#9aa5ba; --line:#2a3550;
-  --accent:#7fb0ee; --accent-soft:#1e2c47;
+  --accent:#7fb0ee; --accent-soft:#1e2c47; --on-accent:#0d1a2e;
   --ok:#6fd3a0; --ok-bg:#16352a; --warn:#f0bd6a; --warn-bg:#3a2d12;
   --info:#9db8ea; --info-bg:#1f2c49; --bad:#f19a9a; --bad-bg:#3d1c1c; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0f1624; --surface:#172034; --fg:#e8ecf4; --muted:#9aa5ba; --line:#2a3550;
-  --accent:#7fb0ee; --accent-soft:#1e2c47;
+  --accent:#7fb0ee; --accent-soft:#1e2c47; --on-accent:#0d1a2e;
   --ok:#6fd3a0; --ok-bg:#16352a; --warn:#f0bd6a; --warn-bg:#3a2d12;
   --info:#9db8ea; --info-bg:#1f2c49; --bad:#f19a9a; --bad-bg:#3d1c1c; color-scheme:dark}
 *{box-sizing:border-box}
@@ -130,6 +130,10 @@ label.up{cursor:pointer;display:inline-block}
 select{font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg);max-width:220px}
 .files{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .files .btn{font-size:12px;padding:3px 9px}
+.btn.rd{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.btn.rd:hover{filter:brightness(1.1)}
+.btn.rd2{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.btn.rd2:hover{filter:brightness(0.97)}
 .files .off{font-size:12px;color:var(--muted);padding:3px 0}
 .ask{color:var(--bad)}
 .upbox{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:13px}
@@ -298,11 +302,12 @@ function fileLabel(n,i,isOld){
   if(/^ThoaThuan/.test(sc)) return "Thỏa thuận";
   return i===0 ? "Hợp đồng" : "Tài liệu kèm";
 }
+function i0(n,h){ return h.files[0]===n; }
 function filesHtml(h){
   const L=[...h.files.map((n,i)=>[n,fileLabel(n,i,false)]), ...(h.cu||[]).map(n=>[n,fileLabel(n,0,true)])];
   if(!L.length) return "";
   return `<div class="files">${L.map(([n,l])=>state.files[stem(n)]
-     ? `<button class="btn" data-open="${esc(stem(n))}" title="${esc(n)}">Đọc ${esc(l.toLowerCase())}</button>`
+     ? `<button class="btn ${i0(n,h)?"rd":"rd2"}" data-open="${esc(stem(n))}" title="${esc(n)}">Đọc ${esc(l.toLowerCase())}</button>`
      : `<span class="off" title="${esc(n)}">${esc(l)}: chưa tải lên web</span>`).join("")}</div>`;
 }
 function hit(h,p){
@@ -340,7 +345,7 @@ function renderTable(ps){
   if(!ps.length){$("out").innerHTML=`<div class="empty">Không tìm thấy hợp đồng phù hợp.</div>`;return;}
   $("out").innerHTML=`<div class="tw"><table><thead><tr><th>Dự án</th><th>Nội dung</th><th>Số hợp đồng</th><th>Tình trạng</th><th>Ngày ký</th><th class="num">Giá trị HĐ</th><th>Bản scan</th></tr></thead><tbody>${ps.map(p=>
     `<tr class="pj"><td colspan="5">${esc(p.ten)} · ${p.hd.length} hợp đồng</td><td class="num m">${money(total(p.hd))}</td><td></td></tr>`+
-    p.hd.map(h=>{const f=h.files[0]&&state.files[stem(h.files[0])];return `<tr><td></td><td>${esc(h.nd||"—")}</td><td class="m ${h.ask?"ask":""}">${esc(h.so||(h.ask?"Chờ bổ sung":"—"))}</td><td><span class="tag s-${h.k}">${ST[h.k]}</span></td><td>${esc(h.ngay||"—")}</td><td class="num m">${money(h.gt)}</td><td>${f?`<button class="btn" data-open="${esc(stem(h.files[0]))}">Đọc</button>`:(h.files.length?"Chưa tải":"—")}</td></tr>`}).join("")).join("")}</tbody></table></div>`;
+    p.hd.map(h=>{const f=h.files[0]&&state.files[stem(h.files[0])];return `<tr><td></td><td>${esc(h.nd||"—")}</td><td class="m ${h.ask?"ask":""}">${esc(h.so||(h.ask?"Chờ bổ sung":"—"))}</td><td><span class="tag s-${h.k}">${ST[h.k]}</span></td><td>${esc(h.ngay||"—")}</td><td class="num m">${money(h.gt)}</td><td>${f?`<button class="btn rd" data-open="${esc(stem(h.files[0]))}">Đọc</button>`:(h.files.length?"Chưa tải":"—")}</td></tr>`}).join("")).join("")}</tbody></table></div>`;
 }
 function render(){
   $("sub").textContent=T().sub;
