@@ -204,7 +204,7 @@ function showLogin(err){
     route();};
 }
 function showChange(forced,session){
-  authView(`<h2>Đổi mật khẩu</h2><p>${forced?"Đây là lần đầu đăng nhập. Hãy đặt mật khẩu riêng của bạn.":"Nhập mật khẩu mới."} Tối thiểu 6 ký tự, khác mật khẩu được cấp.</p>
+  authView(`<h2>Đổi mật khẩu</h2><p>${forced?"Lần đầu đăng nhập, bạn đặt mật khẩu mới.":"Nhập mật khẩu mới."} Tối thiểu 6 ký tự.</p>
   <form id="f5"><label for="p1">Mật khẩu mới</label><input id="p1" type="password" autocomplete="new-password" minlength="6" required>
   <label for="p2">Nhập lại mật khẩu mới</label><input id="p2" type="password" autocomplete="new-password" minlength="6" required>
   <button class="btn" type="submit">Lưu mật khẩu</button><div class="err" id="er"></div></form>${forced?"":'<button class="lnk" id="bk">Quay lại</button>'}`);
@@ -214,7 +214,8 @@ function showChange(forced,session){
     if(a!==b){$("er").textContent="Hai mật khẩu không giống nhau.";return;}
     if(a.length<6){$("er").textContent="Mật khẩu cần tối thiểu 6 ký tự.";return;}
     const {error}=await sb.auth.updateUser({password:a,data:{pw_changed:true}});
-    if(error){$("er").textContent=/same|different/i.test(error.message)?"Mật khẩu mới phải khác mật khẩu hiện tại.":"Không đổi được mật khẩu: "+error.message;return;}
+    if(error){ if(/sub claim|does not exist|not found|session/i.test(error.message)){await sb.auth.signOut(); showLogin("Phiên đăng nhập cũ đã hết hiệu lực. Bạn đăng nhập lại."); return;}
+      $("er").textContent=/same|different/i.test(error.message)?"Mật khẩu mới phải khác mật khẩu được cấp.":"Không đổi được mật khẩu: "+error.message;return;}
     const {data:{session:s2}}=await sb.auth.getSession(); start(s2);};
 }
 async function showVerify(){
@@ -254,6 +255,8 @@ async function logout(){ await sb.auth.signOut(); DATA={A:[],B:[]}; state.files=
 async function route(){
   const {data:{session}}=await sb.auth.getSession();
   if(!session){showLogin();return;}
+  /* Phiên của tài khoản đã bị xóa/tạo lại: đăng xuất để đăng nhập lại */
+  const u=await sb.auth.getUser(); if(u.error||!u.data||!u.data.user){await sb.auth.signOut(); showLogin(); return;}
   const {data:aal}=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
   if(aal.currentLevel==="aal2"){start(session);return;}
   /* Chỉ tài khoản quản trị phải dùng Google Authenticator; người xem chỉ cần mật khẩu */
