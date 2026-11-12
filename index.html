@@ -255,8 +255,11 @@ async function route(){
   const {data:{session}}=await sb.auth.getSession();
   if(!session){showLogin();return;}
   const {data:aal}=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
-  if(aal.currentLevel==="aal2"){start(session);}
-  else if(aal.nextLevel==="aal2"){showVerify();}
+  if(aal.currentLevel==="aal2"){start(session);return;}
+  /* Chỉ tài khoản quản trị phải dùng Google Authenticator; người xem chỉ cần mật khẩu */
+  const isAdm=await sb.from("admins").select("user_id").eq("user_id",session.user.id);
+  if(!(isAdm.data&&isAdm.data.length)){start(session);return;}
+  if(aal.nextLevel==="aal2"){showVerify();}
   else {showEnroll();}
 }
 
