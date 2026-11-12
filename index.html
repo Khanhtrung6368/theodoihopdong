@@ -323,8 +323,6 @@ function renderChips(){
 function lineHtml(h){
   return `<div class="hd"><div class="r1"><div><div class="nd">${esc(h.nd||"—")}</div><div class="so ${h.ask?"ask":""}">${esc(h.so||(h.ask?"Chờ bổ sung số HĐ":"Chưa có số hợp đồng"))}</div></div><span class="tag s-${h.k}">${ST[h.k]}</span></div>
   <div class="r2"><span>Ngày ký: ${esc(h.ngay||"—")}</span><span class="v ${h.ask&&h.gt==null?"ask":""}">${h.gt==null&&h.ask?"Chờ bổ sung":money(h.gt)}</span></div>
-  ${h.tt_scan&&h.k!=="ok"?`<div class="note">${esc(h.tt_scan)}</div>`:""}
-  ${h.ghichu?`<div class="note">${esc(h.ghichu)}</div>`:""}${h.xl?`<div class="note">${esc(h.xl)}</div>`:""}
   ${filesHtml(h)}</div>`;
 }
 function renderCards(ps){
