@@ -90,9 +90,10 @@ footer{margin-top:28px;padding-top:12px;border-top:1px solid var(--line);font-si
 @media (max-width:520px){h1{font-size:20px}.meta{text-align:left}.grid{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){.caret{transition:none}}
 
-.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-top:12px}
-.tab{font:inherit;font-size:14px;font-weight:600;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:10px 14px;cursor:pointer;margin-bottom:-1px}
-.tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+.tabs{display:flex;gap:10px;margin-top:14px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.tab{font:inherit;font-size:15px;font-weight:700;background:var(--accent-soft);border:1.5px solid var(--accent);color:var(--accent);padding:9px 20px;border-radius:8px;cursor:pointer}
+.tab:hover{filter:brightness(0.96)}
+.tab[aria-selected="true"]{background:var(--accent);color:var(--on-accent);box-shadow:0 2px 6px rgba(31,78,140,.25)}
 .s-todo{background:var(--line);color:var(--muted)}
 .s-doing{background:var(--warn-bg);color:var(--warn)}
 .s-done{background:var(--ok-bg);color:var(--ok)}
@@ -146,9 +147,8 @@ select{font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);
     <div>
       <div class="brand">Stellar · Phòng Đấu thầu</div>
       <h1>Theo dõi hợp đồng</h1>
-      <div class="sub" id="sub"></div>
     </div>
-    <div class="meta">Danh mục cập nhật: <b id="upd"></b><br>Nguồn: <span id="srcname"></span>
+    <div class="meta">Danh mục cập nhật: <b id="upd"></b>
       <div class="who"><span id="who"></span><button class="btn" id="chpw">Đổi mật khẩu</button><button class="btn" id="logout">Đăng xuất</button></div></div>
   </header>
   <div class="tabs" role="tablist">
@@ -288,7 +288,7 @@ async function start(session){
   $("who").textContent=session.user.email;
   const ok=await loadAll();
   $("msg").hidden=ok; if(!ok) $("msg").textContent="Không tải được dữ liệu. Tài khoản chưa được cấp quyền hoặc chưa qua bước Authenticator.";
-  $("upd").textContent=META.updated; $("srcname").textContent=META.source;
+  $("upd").textContent=META.updated;
   if(location.hash==="#bb") state.tab="bb";
   render();
 }
@@ -348,7 +348,7 @@ function renderTable(ps){
     p.hd.map(h=>{const f=h.files[0]&&state.files[stem(h.files[0])];return `<tr><td></td><td>${esc(h.nd||"—")}</td><td class="m ${h.ask?"ask":""}">${esc(h.so||(h.ask?"Chờ bổ sung":"—"))}</td><td><span class="tag s-${h.k}">${ST[h.k]}</span></td><td>${esc(h.ngay||"—")}</td><td class="num m">${money(h.gt)}</td><td>${f?`<button class="btn rd" data-open="${esc(stem(h.files[0]))}">Đọc</button>`:(h.files.length?"Chưa tải":"—")}</td></tr>`}).join("")).join("")}</tbody></table></div>`;
 }
 function render(){
-  $("sub").textContent=T().sub;
+
   renderChips();
   const ps=visibleProjects(), hd=ps.flatMap(p=>p.hd), tl=hd.filter(h=>h.k==="tl");
   $("summary").innerHTML=`<span>Dự án <b>${ps.length}</b></span><span>Hợp đồng <b>${hd.length}</b></span><span>Tổng giá trị <b>${money(total(hd))}</b></span>${tl.length?`<span>Trong đó đã thanh lý <b>${money(total(tl))}</b></span>`:""}`;
