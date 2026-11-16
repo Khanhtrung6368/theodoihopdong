@@ -78,6 +78,7 @@ input[type=search]{font:inherit;font-size:13px;padding:6px 10px;border:1px solid
 .hd .r1{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
 .hd .nd{font-weight:600;font-size:13px}
 .so{font-family:var(--mono);font-size:12px;color:var(--muted);overflow-wrap:anywhere;margin-top:2px}
+.hd .da{font-size:12px;color:var(--muted);margin-top:2px}
 .hd .r2{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;margin-top:4px;font-size:12px;color:var(--muted)}
 .hd .r2 .v{font-family:var(--mono);color:var(--fg)}
 .note{font-size:12px;color:var(--muted);margin-top:2px}
@@ -164,6 +165,7 @@ select{font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" id="tAB" aria-selected="true">Hợp đồng A-B</button>
     <button class="tab" role="tab" id="tBB" aria-selected="false">Hợp đồng B-B'</button>
+    <button class="tab" role="tab" id="tCG" aria-selected="false">Hợp đồng chuyên gia</button>
   </div>
   <div class="bar">
     <div class="chips" id="chips" role="group" aria-label="Lọc theo tình trạng"></div>
@@ -194,7 +196,7 @@ const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const sb = supabase.createClient(SB_URL, SB_KEY);
 let DATA = {A:[], B:[]};
 const META = {updated:"12/11/2026", source:"Bang_thong_ke_hop_dong_A-B_va_B-B_cac_du_an_v05_261112"};
-const TABS = {ab:{sub:"Hợp đồng A-B (Stellar với chủ đầu tư), theo dự án", key:"A"}, bb:{sub:"Hợp đồng B-B' (thầu phụ, chuyên gia và các hợp đồng khác), theo dự án", key:"B"}};
+const TABS = {ab:{sub:"Hợp đồng A-B (Stellar với chủ đầu tư), theo dự án", key:"A"}, bb:{sub:"Hợp đồng B-B' (thầu phụ, chuyên gia và các hợp đồng khác), theo dự án", key:"B"}, cg:{sub:"Hợp đồng chuyên gia (lấy từ B-B', gộp các dự án)", key:"C"}};
 const ST = {ok:"Đã có bản scan", tl:"Đã thanh lý", mot:"Chỉ có bản 1 dấu", chua:"Chưa có bản scan", none:"Chưa ký HĐ"};
 const state = {tab:"ab", f:"all", pj:"", q:"", show:true, view:"card", open:new Set(), files:{}, canWrite:false};
 const $ = id => document.getElementById(id);
@@ -203,7 +205,22 @@ const money = n => n==null ? "—" : (state.show ? fmt(n)+" đ" : "••••�
 const esc = s => String(s==null?"":s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const total = list => list.reduce((a,h)=>a+(h.gt||0),0);
 const T = () => TABS[state.tab];
-const lst = () => DATA[T().key];
+const isCG = h => /HĐCG/i.test(h.so||"") || /^NhieuDA_/.test(h.key||"");
+/* Thẻ chuyên gia: chỉ đọc từ DATA.B, gộp HĐ dùng chung nhiều dự án; không thay đổi dữ liệu B-B' */
+function cgList(){
+  const m=new Map();
+  for(const p of DATA.B) for(const h of p.hd){ if(!isCG(h)) continue;
+    const id=h.so||(h.files[0]||h.key);
+    if(!m.has(id)) m.set(id,{...h,files:[...h.files],cu:[...(h.cu||[])],gt:null,da:[]});
+    const g=m.get(id);
+    if(h.gt!=null) g.gt=(g.gt||0)+h.gt;
+    if(!g.da.includes(p.ten)) g.da.push(p.ten);
+    h.files.forEach(f=>{if(!g.files.includes(f))g.files.push(f)});
+    g.ask=g.ask||h.ask; }
+  const hd=[...m.values()].sort((a,b)=>(a.nd||"").localeCompare(b.nd||"","vi"));
+  return hd.length?[{ten:"Tất cả chuyên gia",hd}]:[];
+}
+const lst = () => T().key==="C" ? cgList() : DATA[T().key];
 const stem = n => n.replace(/\.pdf$/i,"");
 /* ---------- Đăng nhập, mật khẩu, mã Authenticator ---------- */
 function authView(html){ $("app").hidden=true; const a=$("auth"); a.hidden=false; a.innerHTML=html; }
@@ -299,7 +316,7 @@ async function start(session){
   const ok=await loadAll();
   $("msg").hidden=ok; if(!ok) $("msg").textContent="Không tải được dữ liệu. Tài khoản chưa được cấp quyền hoặc chưa qua bước Authenticator.";
   $("upd").textContent=META.updated;
-  if(location.hash==="#bb") state.tab="bb";
+  if(location.hash==="#bb") state.tab="bb"; if(location.hash==="#cg"){state.tab="cg";state.open.add("Tất cả chuyên gia");}
   render();
 }
 
@@ -324,7 +341,7 @@ function hit(h,p){
   if(state.f!=="all"&&h.k!==state.f) return false;
   if(state.pj&&p.ten!==state.pj) return false;
   const q=state.q.trim().toLowerCase(); if(!q) return true;
-  return (p.ten+" "+(h.nd||"")+" "+(h.so||"")).toLowerCase().includes(q);
+  return (p.ten+" "+(h.nd||"")+" "+(h.so||"")+" "+(h.da||[]).join(" ")).toLowerCase().includes(q);
 }
 function visibleProjects(){ return lst().map(p=>({...p,hd:p.hd.filter(h=>hit(h,p))})).filter(p=>p.hd.length); }
 function renderChips(){
@@ -336,7 +353,7 @@ function renderChips(){
   $("pj").innerHTML=`<option value="">Tất cả dự án (${names.length})</option>`+names.map(n=>`<option ${n===state.pj?"selected":""}>${esc(n)}</option>`).join("");
 }
 function lineHtml(h){
-  return `<div class="hd"><div class="r1"><div><div class="nd">${esc(h.nd||"—")}</div><div class="so ${h.ask?"ask":""}">${esc(h.so||(h.ask?"Chờ bổ sung số HĐ":"Chưa có số hợp đồng"))}</div></div><span class="tag s-${h.k}">${ST[h.k]}</span></div>
+  return `<div class="hd"><div class="r1"><div><div class="nd">${esc(h.nd||"—")}</div><div class="so ${h.ask?"ask":""}">${esc(h.so||(h.ask?"Chờ bổ sung số HĐ":"Chưa có số hợp đồng"))}</div>${h.da?`<div class="da">Dự án: ${esc(h.da.join(", "))}</div>`:""}</div><span class="tag s-${h.k}">${ST[h.k]}</span></div>
   <div class="r2"><span>Ngày ký: ${esc(h.ngay||"—")}</span><span class="v ${h.ask&&h.gt==null?"ask":""}">${h.gt==null&&h.ask?"Chờ bổ sung":money(h.gt)}</span></div>
   ${filesHtml(h)}</div>`;
 }
@@ -355,7 +372,7 @@ function renderTable(ps){
   if(!ps.length){$("out").innerHTML=`<div class="empty">Không tìm thấy hợp đồng phù hợp.</div>`;return;}
   $("out").innerHTML=`<div class="tw"><table><thead><tr><th>Dự án</th><th>Nội dung</th><th>Số hợp đồng</th><th>Tình trạng</th><th>Ngày ký</th><th class="num">Giá trị HĐ</th><th>Bản scan</th></tr></thead><tbody>${ps.map(p=>
     `<tr class="pj"><td colspan="5">${esc(p.ten)} · ${p.hd.length} hợp đồng</td><td class="num m">${money(total(p.hd))}</td><td></td></tr>`+
-    p.hd.map(h=>{const f=h.files[0]&&state.files[stem(h.files[0])];return `<tr><td></td><td>${esc(h.nd||"—")}</td><td class="m ${h.ask?"ask":""}">${esc(h.so||(h.ask?"Chờ bổ sung":"—"))}</td><td><span class="tag s-${h.k}">${ST[h.k]}</span></td><td>${esc(h.ngay||"—")}</td><td class="num m">${money(h.gt)}</td><td>${f?`<button class="btn rd" data-open="${esc(stem(h.files[0]))}">Đọc</button>`:(h.files.length?"Chưa tải":"—")}</td></tr>`}).join("")).join("")}</tbody></table></div>`;
+    p.hd.map(h=>{const f=h.files[0]&&state.files[stem(h.files[0])];return `<tr><td>${esc((h.da||[]).join(", "))}</td><td>${esc(h.nd||"—")}</td><td class="m ${h.ask?"ask":""}">${esc(h.so||(h.ask?"Chờ bổ sung":"—"))}</td><td><span class="tag s-${h.k}">${ST[h.k]}</span></td><td>${esc(h.ngay||"—")}</td><td class="num m">${money(h.gt)}</td><td>${f?`<button class="btn rd" data-open="${esc(stem(h.files[0]))}">Đọc</button>`:(h.files.length?"Chưa tải":"—")}</td></tr>`}).join("")).join("")}</tbody></table></div>`;
 }
 function render(){
 
@@ -371,10 +388,11 @@ function render(){
   $("vis").textContent=state.show?"Ẩn giá trị":"Hiện giá trị";
   $("tAB").setAttribute("aria-selected",state.tab==="ab");
   $("tBB").setAttribute("aria-selected",state.tab==="bb");
+  $("tCG").setAttribute("aria-selected",state.tab==="cg"); $("pj").hidden=state.tab==="cg";
   $("ro").hidden=state.canWrite; $("bulk").hidden=!state.canWrite;
 }
 function setTab(t){state.tab=t;state.f="all";state.pj="";state.q="";$("q").value="";state.open=new Set();render();try{history.replaceState(null,"","#"+t)}catch(e){}}
-$("tAB").onclick=()=>setTab("ab"); $("tBB").onclick=()=>setTab("bb");
+$("tAB").onclick=()=>setTab("ab"); $("tBB").onclick=()=>setTab("bb"); $("tCG").onclick=()=>{setTab("cg");state.open.add("Tất cả chuyên gia");render()};
 $("chips").addEventListener("click",e=>{const b=e.target.closest(".chip");if(b){state.f=b.dataset.k;render()}});
 $("pj").onchange=e=>{state.pj=e.target.value;state.f="all";if(state.pj)state.open.add(state.pj);render()};
 $("q").addEventListener("input",e=>{state.q=e.target.value;render()});
