@@ -165,7 +165,6 @@ select{font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" id="tAB" aria-selected="true">Hợp đồng A-B</button>
     <button class="tab" role="tab" id="tBB" aria-selected="false">Hợp đồng B-B'</button>
-    <button class="tab" role="tab" id="tCG" aria-selected="false">Hợp đồng chuyên gia</button>
   </div>
   <div class="bar">
     <div class="chips" id="chips" role="group" aria-label="Lọc theo tình trạng"></div>
@@ -176,6 +175,7 @@ select{font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);
       <button class="btn" id="vCard" aria-pressed="true">Thẻ</button>
       <button class="btn" id="vTab" aria-pressed="false">Bảng</button>
     </div>
+    <button class="btn" id="cgb" aria-pressed="false" hidden>Hợp đồng chuyên gia</button>
     <button class="btn" id="all" hidden>Mở tất cả</button>
     <label class="btn up" id="bulk" hidden>Tải bản scan hàng loạt<input type="file" id="bulkin" accept="application/pdf" multiple hidden></label>
   </div>
@@ -196,9 +196,9 @@ const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const sb = supabase.createClient(SB_URL, SB_KEY);
 let DATA = {A:[], B:[]};
 const META = {updated:"12/11/2026", source:"Bang_thong_ke_hop_dong_A-B_va_B-B_cac_du_an_v05_261112"};
-const TABS = {ab:{sub:"Hợp đồng A-B (Stellar với chủ đầu tư), theo dự án", key:"A"}, bb:{sub:"Hợp đồng B-B' (thầu phụ, chuyên gia và các hợp đồng khác), theo dự án", key:"B"}, cg:{sub:"Hợp đồng chuyên gia (lấy từ B-B', gộp các dự án)", key:"C"}};
+const TABS = {ab:{sub:"Hợp đồng A-B (Stellar với chủ đầu tư), theo dự án", key:"A"}, bb:{sub:"Hợp đồng B-B' (thầu phụ, chuyên gia và các hợp đồng khác), theo dự án", key:"B"}};
 const ST = {ok:"Đã có bản scan", tl:"Đã thanh lý", mot:"Chỉ có bản 1 dấu", chua:"Chưa có bản scan", none:"Chưa ký HĐ"};
-const state = {tab:"ab", f:"all", pj:"", q:"", show:true, view:"card", open:new Set(), files:{}, canWrite:false};
+const state = {tab:"ab", f:"all", pj:"", q:"", show:true, cg:false, view:"card", open:new Set(), files:{}, canWrite:false};
 const $ = id => document.getElementById(id);
 const fmt = n => n==null ? "—" : Math.round(n).toLocaleString("vi-VN");
 const money = n => n==null ? "—" : (state.show ? fmt(n)+" đ" : "••••••• đ");
@@ -220,7 +220,7 @@ function cgList(){
   const hd=[...m.values()].sort((a,b)=>(a.nd||"").localeCompare(b.nd||"","vi"));
   return hd.length?[{ten:"Tất cả chuyên gia",hd}]:[];
 }
-const lst = () => T().key==="C" ? cgList() : DATA[T().key];
+const lst = () => (state.tab==="bb"&&state.cg) ? cgList() : DATA[T().key];
 const stem = n => n.replace(/\.pdf$/i,"");
 /* ---------- Đăng nhập, mật khẩu, mã Authenticator ---------- */
 function authView(html){ $("app").hidden=true; const a=$("auth"); a.hidden=false; a.innerHTML=html; }
@@ -316,7 +316,7 @@ async function start(session){
   const ok=await loadAll();
   $("msg").hidden=ok; if(!ok) $("msg").textContent="Không tải được dữ liệu. Tài khoản chưa được cấp quyền hoặc chưa qua bước Authenticator.";
   $("upd").textContent=META.updated;
-  if(location.hash==="#bb") state.tab="bb"; if(location.hash==="#cg"){state.tab="cg";state.open.add("Tất cả chuyên gia");}
+  if(location.hash==="#bb") state.tab="bb"; if(location.hash==="#cg"){state.tab="bb";state.cg=true;state.open.add("Tất cả chuyên gia");}
   render();
 }
 
@@ -388,11 +388,12 @@ function render(){
   $("vis").textContent=state.show?"Ẩn giá trị":"Hiện giá trị";
   $("tAB").setAttribute("aria-selected",state.tab==="ab");
   $("tBB").setAttribute("aria-selected",state.tab==="bb");
-  $("tCG").setAttribute("aria-selected",state.tab==="cg"); $("pj").hidden=state.tab==="cg";
+  if(state.tab!=="bb") state.cg=false;
+  $("cgb").hidden=state.tab!=="bb"; $("cgb").setAttribute("aria-pressed",state.cg); $("pj").hidden=state.cg;
   $("ro").hidden=state.canWrite; $("bulk").hidden=!state.canWrite;
 }
-function setTab(t){state.tab=t;state.f="all";state.pj="";state.q="";$("q").value="";state.open=new Set();render();try{history.replaceState(null,"","#"+t)}catch(e){}}
-$("tAB").onclick=()=>setTab("ab"); $("tBB").onclick=()=>setTab("bb"); $("tCG").onclick=()=>{setTab("cg");state.open.add("Tất cả chuyên gia");render()};
+function setTab(t){state.tab=t;state.cg=false;state.f="all";state.pj="";state.q="";$("q").value="";state.open=new Set();render();try{history.replaceState(null,"","#"+t)}catch(e){}}
+$("tAB").onclick=()=>setTab("ab"); $("tBB").onclick=()=>setTab("bb"); $("cgb").onclick=()=>{state.cg=!state.cg;state.f="all";state.pj="";if(state.cg)state.open.add("Tất cả chuyên gia");render()};
 $("chips").addEventListener("click",e=>{const b=e.target.closest(".chip");if(b){state.f=b.dataset.k;render()}});
 $("pj").onchange=e=>{state.pj=e.target.value;state.f="all";if(state.pj)state.open.add(state.pj);render()};
 $("q").addEventListener("input",e=>{state.q=e.target.value;render()});
