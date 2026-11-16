@@ -217,8 +217,10 @@ function cgList(){
     if(!g.da.includes(p.ten)) g.da.push(p.ten);
     h.files.forEach(f=>{if(!g.files.includes(f))g.files.push(f)});
     g.ask=g.ask||h.ask; }
-  const hd=[...m.values()].sort((a,b)=>(a.nd||"").localeCompare(b.nd||"","vi"));
-  return hd.length?[{ten:"Tất cả chuyên gia",hd}]:[];
+  /* Mỗi chuyên gia một thẻ (tên lấy trước dấu " – " trong nội dung) */
+  const g=new Map();
+  for(const h of m.values()){ const n=(h.nd||"Chưa rõ chuyên gia").split(" – ")[0].trim(); if(!g.has(n)) g.set(n,[]); g.get(n).push(h); }
+  return [...g.entries()].sort((a,b)=>a[0].localeCompare(b[0],"vi")).map(([ten,hd])=>({ten,hd}));
 }
 const lst = () => (state.tab==="bb"&&state.cg) ? cgList() : DATA[T().key];
 const stem = n => n.replace(/\.pdf$/i,"");
@@ -350,7 +352,7 @@ function renderChips(){
   const cnt=k=>k==="all"?all.length:all.filter(h=>h.k===k).length;
   $("chips").innerHTML=defs.filter(([k])=>k==="all"||cnt(k)).map(([k,l])=>`<button class="chip" data-k="${k}" aria-pressed="${state.f===k}">${l}<span class="n">${cnt(k)}</span></button>`).join("");
   const names=lst().map(p=>p.ten);
-  $("pj").innerHTML=`<option value="">Tất cả dự án (${names.length})</option>`+names.map(n=>`<option ${n===state.pj?"selected":""}>${esc(n)}</option>`).join("");
+  $("pj").innerHTML=`<option value="">${state.cg?"Tất cả chuyên gia":"Tất cả dự án"} (${names.length})</option>`+names.map(n=>`<option ${n===state.pj?"selected":""}>${esc(n)}</option>`).join("");
 }
 function lineHtml(h){
   return `<div class="hd"><div class="r1"><div><div class="nd">${esc(h.nd||"—")}</div><div class="so ${h.ask?"ask":""}">${esc(h.so||(h.ask?"Chờ bổ sung số HĐ":"Chưa có số hợp đồng"))}</div>${h.da?`<div class="da">Dự án: ${esc(h.da.join(", "))}</div>`:""}</div><span class="tag s-${h.k}">${ST[h.k]}</span></div>
@@ -389,7 +391,7 @@ function render(){
   $("tAB").setAttribute("aria-selected",state.tab==="ab");
   $("tBB").setAttribute("aria-selected",state.tab==="bb");
   if(state.tab!=="bb") state.cg=false;
-  $("cgb").hidden=state.tab!=="bb"; $("cgb").setAttribute("aria-pressed",state.cg); $("pj").hidden=state.cg;
+  $("cgb").hidden=state.tab!=="bb"; $("cgb").setAttribute("aria-pressed",state.cg); 
   $("ro").hidden=state.canWrite; $("bulk").hidden=!state.canWrite;
 }
 function setTab(t){state.tab=t;state.cg=false;state.f="all";state.pj="";state.q="";$("q").value="";state.open=new Set();render();try{history.replaceState(null,"","#"+t)}catch(e){}}
