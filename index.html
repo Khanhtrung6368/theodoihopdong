@@ -175,7 +175,7 @@ select{font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);
       <button class="btn" id="vCard" aria-pressed="true">Thẻ</button>
       <button class="btn" id="vTab" aria-pressed="false">Bảng</button>
     </div>
-    <button class="btn" id="cgb" aria-pressed="false" hidden>Hợp đồng chuyên gia</button>
+    <button class="btn" id="cgb" aria-pressed="false" hidden>Chuyên gia</button>
     <button class="btn" id="all" hidden>Mở tất cả</button>
     <label class="btn up" id="bulk" hidden>Tải bản scan hàng loạt<input type="file" id="bulkin" accept="application/pdf" multiple hidden></label>
   </div>
@@ -378,7 +378,7 @@ function render(){
 
   renderChips();
   const ps=visibleProjects(), hd=ps.flatMap(p=>p.hd), tl=hd.filter(h=>h.k==="tl");
-  $("summary").innerHTML=`<span>Dự án <b>${ps.length}</b></span><span>Hợp đồng <b>${hd.length}</b></span><span>Tổng giá trị <b>${money(total(hd))}</b></span>${tl.length?`<span>Trong đó đã thanh lý <b>${money(total(tl))}</b></span>`:""}`;
+  $("summary").innerHTML=`<span>Dự án <b>${state.cg?"Tất cả":ps.length}</b></span><span>Hợp đồng <b>${hd.length}</b></span><span>Tổng giá trị <b>${money(total(hd))}</b></span>${tl.length?`<span>Trong đó đã thanh lý <b>${money(total(tl))}</b></span>`:""}`;
   $("all").hidden=state.view!=="card";
   $("all").textContent=ps.length&&ps.every(p=>state.open.has(p.ten))?"Thu tất cả":"Mở tất cả";
   state.view==="card"?renderCards(ps):renderTable(ps);
