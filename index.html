@@ -437,7 +437,7 @@ $("bulkin").addEventListener("change",e=>bulkUpload(e.target.files));
 
 /* ---------- Xuất Excel: 1 sheet gộp HĐ A-B và B-B', toàn bộ danh mục, bỏ HĐ chưa ký ----------
    Định dạng: Times New Roman 12, chữ đen nền trắng, viền mảnh, lề trái 3 cm, phải/trên/dưới 2 cm, A4 ngang.
-   Dòng nhóm (HĐ A-B / HĐ B-B', từng dự án) dùng SUBTOTAL(9,...) nên không cộng trùng.
+   Gộp HĐ A-B và B-B' theo từng dự án; cuối bảng có hàng tổng A-B, B-B' và đã thanh lý (SUMIFS).
    Chưa có dữ liệu trên web, để trống: tên chủ đầu tư (Bên giao thầu HĐ A-B), giá trị tạm ứng, bảo lãnh. */
 function loadScript(src){ return new Promise((ok,ng)=>{ const s=document.createElement("script"); s.src=src; s.onload=ok; s.onerror=()=>ng(new Error("Không tải được thư viện Excel")); document.head.appendChild(s); }); }
 function toDate(s){ const m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(s||"").trim()); return m ? new Date(Date.UTC(+m[3],+m[2]-1,+m[1])) : null; }
@@ -452,41 +452,47 @@ function buildWorkbook(ExcelJS, A, Bb, note){
   const cols=[["TT",6],["Loại HĐ",10],["Dự án",16],["Bên giao thầu",22],["Bên nhận thầu",22],["Phạm vi công việc",45],["Số hợp đồng",24],
     ["Ngày ký",13],["Giá trị HĐ (đồng)",19],["Giá trị tạm ứng",18],["Ghi chú",22],["Bảo lãnh tạm ứng",18],["Bảo lãnh thực hiện HĐ",18]];
   ws.columns=cols.map(([,w])=>({width:w}));
-  const n=cols.length, cGT=9, cTU=10;
+  const n=cols.length, cGT=9, cTU=10, cGC=11, L=c=>ws.getColumn(c).letter;
   const fmtRow=(row,bold)=>{ for(let i=1;i<=n;i++){ const c=row.getCell(i); c.font={...F,bold:!!bold}; c.border=BD; c.alignment={vertical:"top",wrapText:true}; } };
-  const sumRow=(row,r1,r2)=>{ for(const c of [cGT,cTU]){ const L=ws.getColumn(c).letter; const x=row.getCell(c);
-    x.value={formula:`SUBTOTAL(9,${L}${r1}:${L}${r2})`}; x.numFmt="#,##0"; x.alignment={horizontal:"right",vertical:"top"}; } };
   ws.mergeCells(1,1,1,n); ws.getCell(1,1).value="BẢNG THEO DÕI HỢP ĐỒNG";
   ws.getCell(1,1).font={...F,size:14,bold:true}; ws.getCell(1,1).alignment={horizontal:"center"};
   ws.mergeCells(2,1,2,n); ws.getCell(2,1).value=note; ws.getCell(2,1).font={...F,italic:true};
   const hr=ws.getRow(4); cols.forEach(([t],i)=>hr.getCell(i+1).value=t); fmtRow(hr,true);
   for(let i=1;i<=n;i++) hr.getCell(i).alignment={horizontal:"center",vertical:"middle",wrapText:true};
-  let r=5, tt=0;
-  for(const [loai,list] of [["A-B",A],["B-B'",Bb]]){
-    const ps=signedOnly(list); if(!ps.length) continue;
-    const sr=r++; const srow=ws.getRow(sr); srow.getCell(6).value=`HỢP ĐỒNG ${loai}`;
-    for(const p of ps){
-      const pr=r++; const row=ws.getRow(pr);
-      row.getCell(6).value=`${p.ten} (${p.hd.length} hợp đồng)`;
-      for(const h of p.hd){
-        const x=ws.getRow(r); tt++;
-        const nd=h.nd||""; const i=nd.indexOf(" – ");
-        const giao = loai==="A-B" ? "" : "Stellar";
-        const nhan = loai==="A-B" ? "Stellar" : (i>0 ? nd.slice(0,i).trim() : "");
-        const pv = loai==="A-B" ? nd : (i>0 ? nd.slice(i+3).trim() : nd);
-        [tt, loai, p.ten, giao, nhan, pv, h.so||(h.ask?"Chờ bổ sung":""), toDate(h.ngay)||h.ngay||"",
-         h.gt==null?(h.ask?"Chờ bổ sung":null):h.gt, null, h.k in XGHI ? XGHI[h.k] : (ST[h.k]||"")]
-          .forEach((val,j)=>x.getCell(j+1).value=val);
-        fmtRow(x);
-        [1,2,8].forEach(c=>x.getCell(c).alignment={horizontal:"center",vertical:"top"});
-        x.getCell(8).numFmt="dd/mm/yyyy";
-        [cGT,cTU].forEach(c=>{ x.getCell(c).numFmt="#,##0"; x.getCell(c).alignment={horizontal:"right",vertical:"top"}; });
-        if(h.ask) [7,cGT].forEach(c=>{ if(x.getCell(c).value==="Chờ bổ sung") x.getCell(c).font={...F,color:{argb:"FFFF0000"}}; });
-        r++;
-      }
-      fmtRow(row,true); sumRow(row,pr+1,r-1);
+  /* Gộp theo dự án: thứ tự dự án theo A-B, dự án chỉ có B-B' xếp sau, "Các Hợp đồng khác" cuối cùng */
+  const pm=new Map();
+  for(const [loai,list] of [["A-B",A],["B-B'",Bb]]) for(const p of signedOnly(list)){
+    if(!pm.has(p.ten)) pm.set(p.ten,[]); for(const h of p.hd) pm.get(p.ten).push([loai,h]); }
+  const names=[...pm.keys()].sort((x,y)=>(x==="Các Hợp đồng khác")-(y==="Các Hợp đồng khác"));
+  let r=5, tt=0; const first=r;
+  for(const ten of names){
+    const items=pm.get(ten), nA=items.filter(x=>x[0]==="A-B").length, nB=items.length-nA;
+    const row=ws.getRow(r++);
+    row.getCell(6).value=`${ten} (`+[nA?`${nA} HĐ A-B`:"", nB?`${nB} HĐ B-B'`:""].filter(Boolean).join(", ")+")";
+    fmtRow(row,true);
+    for(const [loai,h] of items){
+      const x=ws.getRow(r); tt++;
+      const nd=h.nd||""; const i=nd.indexOf(" – ");
+      const giao = loai==="A-B" ? "" : "Stellar";
+      const nhan = loai==="A-B" ? "Stellar" : (i>0 ? nd.slice(0,i).trim() : "");
+      const pv = loai==="A-B" ? nd : (i>0 ? nd.slice(i+3).trim() : nd);
+      [tt, loai, ten, giao, nhan, pv, h.so||(h.ask?"Chờ bổ sung":""), toDate(h.ngay)||h.ngay||"",
+       h.gt==null?(h.ask?"Chờ bổ sung":null):h.gt, null, h.k in XGHI ? XGHI[h.k] : (ST[h.k]||"")]
+        .forEach((val,j)=>x.getCell(j+1).value=val);
+      fmtRow(x);
+      [1,2,8].forEach(c=>x.getCell(c).alignment={horizontal:"center",vertical:"top"});
+      x.getCell(8).numFmt="dd/mm/yyyy";
+      [cGT,cTU].forEach(c=>{ x.getCell(c).numFmt="#,##0"; x.getCell(c).alignment={horizontal:"right",vertical:"top"}; });
+      if(h.ask) [7,cGT].forEach(c=>{ if(x.getCell(c).value==="Chờ bổ sung") x.getCell(c).font={...F,color:{argb:"FFFF0000"}}; });
+      r++;
     }
-    fmtRow(srow,true); sumRow(srow,sr+1,r-1);
+  }
+  /* Hàng tổng: SUMIFS theo cột Loại HĐ và Ghi chú trên vùng dữ liệu (dòng dự án không có Loại HĐ nên không bị cộng) */
+  const last=r-1, rg=c=>`$${L(c)}$${first}:$${L(c)}$${last}`;
+  const tot=[["Tổng giá trị HĐ A-B",rg(2),'"A-B"'],["Tổng giá trị HĐ B-B'",rg(2),`"B-B'"`],["Giá trị HĐ đã thanh lý",rg(cGC),'"Đã thanh lý*"']];
+  for(const [lb,crg,crit] of tot){
+    const t=ws.getRow(r++); t.getCell(6).value=lb; fmtRow(t,true);
+    for(const c of [cGT,cTU]){ const x=t.getCell(c); x.value={formula:`SUMIFS(${rg(c)},${crg},${crit})`}; x.numFmt="#,##0"; x.alignment={horizontal:"right",vertical:"top"}; }
   }
   ws.autoFilter={from:{row:4,column:1},to:{row:4,column:n}};
   ws.views=[{state:"frozen",ySplit:4}];
