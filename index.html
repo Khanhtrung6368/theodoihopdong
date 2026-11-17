@@ -177,7 +177,7 @@ select{font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);
     </div>
     <button class="btn" id="cgb" aria-pressed="false" hidden>Chuyên gia</button>
     <button class="btn" id="all" hidden>Mở tất cả</button>
-    <button class="btn" id="xls" title="Xuất danh sách đang hiển thị (theo tab và bộ lọc) ra file Excel">Xuất Excel</button>
+    <button class="btn" id="xls" title="Xuất toàn bộ HĐ A-B và B-B' đã ký ra file Excel">Xuất Excel</button>
     <label class="btn up" id="bulk" hidden>Tải bản scan hàng loạt<input type="file" id="bulkin" accept="application/pdf" multiple hidden></label>
   </div>
   <div id="ro" class="banner" hidden>Tài khoản này chỉ có quyền xem.</div>
@@ -435,68 +435,68 @@ async function bulkUpload(list){
 }
 $("bulkin").addEventListener("change",e=>bulkUpload(e.target.files));
 
-/* ---------- Xuất Excel: theo tab và bộ lọc đang chọn ----------
+/* ---------- Xuất Excel: 2 sheet HĐ A-B và HĐ B-B', toàn bộ danh mục, bỏ HĐ chưa ký ----------
    Định dạng: Times New Roman 12, chữ đen nền trắng, viền mảnh, lề trái 3 cm, phải/trên/dưới 2 cm, A4 ngang.
-   Tổng dùng SUBTOTAL(9,...) để tổng chung không cộng trùng tổng dự án. Chữ đỏ chỉ ở ô "Chờ bổ sung". */
+   Tổng dùng SUBTOTAL(9,...) để tổng chung không cộng trùng tổng dự án. Chữ đỏ chỉ ở ô "Chờ bổ sung".
+   Cột bảo lãnh (sheet B-B'): web chưa có dữ liệu, để trống. */
 function loadScript(src){ return new Promise((ok,ng)=>{ const s=document.createElement("script"); s.src=src; s.onload=ok; s.onerror=()=>ng(new Error("Không tải được thư viện Excel")); document.head.appendChild(s); }); }
 function toDate(s){ const m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(s||"").trim()); return m ? new Date(Date.UTC(+m[3],+m[2]-1,+m[1])) : null; }
-function buildWorkbook(ExcelJS, ps, opt){
-  const wb=new ExcelJS.Workbook(); wb.creator="Stellar - Phòng Đấu thầu";
+function signedOnly(list){ return list.map(p=>({...p,hd:p.hd.filter(h=>h.k!=="none")})).filter(p=>p.hd.length); }
+function addSheet(wb, ps, opt){
   const ws=wb.addWorksheet(opt.sheet,{pageSetup:{paperSize:9,orientation:"landscape",fitToPage:true,fitToWidth:1,fitToHeight:0,
     margins:{left:3/2.54,right:2/2.54,top:2/2.54,bottom:2/2.54,header:0.3,footer:0.3},printTitlesRow:"4:4"}});
   const F={name:"Times New Roman",size:12,color:{argb:"FF000000"}};
   const B={style:"thin",color:{argb:"FF000000"}}, BD={top:B,left:B,bottom:B,right:B};
-  const cols=[["TT",6],["Nội dung",48],["Số hợp đồng",24],["Ngày ký",13],["Giá trị HĐ (đồng)",20],["Tình trạng",20],["File lưu",46]];
-  if(opt.cg) cols.splice(2,0,["Dự án",24]);
+  const cols=[["TT",6],["Nội dung",50],["Số hợp đồng",24],["Ngày ký",13],["Giá trị HĐ (đồng)",20],["Tình trạng",20]];
+  if(opt.bl) cols.push(["Bảo lãnh tạm ứng",20],["Bảo lãnh thực hiện HĐ",20]);
   ws.columns=cols.map(([,w])=>({width:w}));
-  const n=cols.length, cGT=cols.findIndex(c=>c[0].startsWith("Giá trị"))+1, L=c=>ws.getColumn(c).letter;
+  const n=cols.length, cGT=5, L=c=>ws.getColumn(c).letter;
+  const fmtRow=(row,bold)=>{ for(let i=1;i<=n;i++){ const c=row.getCell(i); c.font={...F,bold:!!bold}; c.border=BD; c.alignment={vertical:"top",wrapText:true}; } };
   ws.mergeCells(1,1,1,n); ws.getCell(1,1).value=opt.title;
   ws.getCell(1,1).font={...F,size:14,bold:true}; ws.getCell(1,1).alignment={horizontal:"center"};
   ws.mergeCells(2,1,2,n); ws.getCell(2,1).value=opt.note; ws.getCell(2,1).font={...F,italic:true};
-  const hr=ws.getRow(4); cols.forEach(([t],i)=>hr.getCell(i+1).value=t);
-  hr.eachCell(c=>{c.font={...F,bold:true};c.border=BD;c.alignment={horizontal:"center",vertical:"middle",wrapText:true};});
+  const hr=ws.getRow(4); cols.forEach(([t],i)=>hr.getCell(i+1).value=t); fmtRow(hr,true);
+  for(let i=1;i<=n;i++) hr.getCell(i).alignment={horizontal:"center",vertical:"middle",wrapText:true};
   let r=5, tt=0; const first=r;
   for(const p of ps){
     const pr=r++; const row=ws.getRow(pr);
     row.getCell(2).value=`${p.ten} (${p.hd.length} hợp đồng)`;
     for(const h of p.hd){
       const x=ws.getRow(r); tt++;
-      const v=[tt, h.nd||"", ...(opt.cg?[(h.da||[]).join(", ")]:[]), h.so||(h.ask?"Chờ bổ sung":""), toDate(h.ngay)||h.ngay||"",
-               h.gt==null?(h.ask?"Chờ bổ sung":null):h.gt, ST[h.k]||"", [...h.files,...(h.cu||[]).map(f=>f+" (HĐ cũ)")].join("\n")];
-      v.forEach((val,i)=>x.getCell(i+1).value=val);
-      x.eachCell({includeEmpty:true},(c,i)=>{ if(i>n) return; c.font={...F}; c.border=BD; c.alignment={vertical:"top",wrapText:true}; });
+      [tt, h.nd||"", h.so||(h.ask?"Chờ bổ sung":""), toDate(h.ngay)||h.ngay||"", h.gt==null?(h.ask?"Chờ bổ sung":null):h.gt, ST[h.k]||""]
+        .forEach((val,i)=>x.getCell(i+1).value=val);
+      fmtRow(x);
       x.getCell(1).alignment={horizontal:"center",vertical:"top"};
-      x.getCell(cGT-1).numFmt="dd/mm/yyyy"; x.getCell(cGT-1).alignment={horizontal:"center",vertical:"top"};
+      x.getCell(4).numFmt="dd/mm/yyyy"; x.getCell(4).alignment={horizontal:"center",vertical:"top"};
       x.getCell(cGT).numFmt="#,##0"; x.getCell(cGT).alignment={horizontal:"right",vertical:"top"};
-      if(h.ask){ [cGT-2,cGT].forEach(c=>{ if(x.getCell(c).value==="Chờ bổ sung") x.getCell(c).font={...F,color:{argb:"FFFF0000"}}; }); }
+      if(h.ask) [3,cGT].forEach(c=>{ if(x.getCell(c).value==="Chờ bổ sung") x.getCell(c).font={...F,color:{argb:"FFFF0000"}}; });
       r++;
     }
     row.getCell(cGT).value={formula:`SUBTOTAL(9,${L(cGT)}${pr+1}:${L(cGT)}${r-1})`};
-    row.eachCell({includeEmpty:true},(c,i)=>{ if(i>n) return; c.font={...F,bold:true}; c.border=BD; c.alignment={vertical:"top",wrapText:true}; });
-    row.getCell(cGT).numFmt="#,##0"; row.getCell(cGT).alignment={horizontal:"right",vertical:"top"};
+    fmtRow(row,true); row.getCell(cGT).numFmt="#,##0"; row.getCell(cGT).alignment={horizontal:"right",vertical:"top"};
   }
   const tr=ws.getRow(r); tr.getCell(2).value="TỔNG CỘNG";
   tr.getCell(cGT).value={formula:`SUBTOTAL(9,${L(cGT)}${first}:${L(cGT)}${r-1})`};
-  tr.eachCell({includeEmpty:true},(c,i)=>{ if(i>n) return; c.font={...F,bold:true}; c.border=BD; });
-  tr.getCell(cGT).numFmt="#,##0"; tr.getCell(cGT).alignment={horizontal:"right"};
+  fmtRow(tr,true); tr.getCell(cGT).numFmt="#,##0"; tr.getCell(cGT).alignment={horizontal:"right"};
   ws.views=[{state:"frozen",ySplit:4}];
+}
+function buildWorkbook(ExcelJS, A, Bb, note){
+  const wb=new ExcelJS.Workbook(); wb.creator="Stellar - Phòng Đấu thầu";
+  addSheet(wb, signedOnly(A), {sheet:"HĐ A-B", title:"BẢNG THEO DÕI HỢP ĐỒNG A-B", note});
+  addSheet(wb, signedOnly(Bb), {sheet:"HĐ B-B' (thầu phụ)", title:"BẢNG THEO DÕI HỢP ĐỒNG B-B'", note, bl:true});
   return wb;
 }
 async function exportExcel(){
-  const btn=$("xls"); const ps=visibleProjects();
-  if(!ps.length){ $("msg").hidden=false; $("msg").textContent="Không có hợp đồng nào để xuất."; return; }
+  const btn=$("xls");
   btn.disabled=true; btn.textContent="Đang xuất…";
   try{
     if(!window.ExcelJS) await loadScript("https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js");
-    const ab=state.tab==="ab", d=new Date(), dd=n=>String(n).padStart(2,"0");
+    const d=new Date(), dd=n=>String(n).padStart(2,"0");
     const ngay=`${dd(d.getDate())}/${dd(d.getMonth()+1)}/${d.getFullYear()}`, ymd=`${String(d.getFullYear()).slice(2)}${dd(d.getMonth()+1)}${dd(d.getDate())}`;
-    const loc=[state.cg?"Chuyên gia":"", state.pj?`Dự án: ${state.pj}`:"", state.f!=="all"?`Tình trạng: ${ST[state.f]}`:"", state.q.trim()?`Tìm: "${state.q.trim()}"`:""].filter(Boolean).join("; ");
-    const wb=buildWorkbook(window.ExcelJS, ps, {cg:state.tab==="bb"&&state.cg, sheet:ab?"HĐ A-B":"HĐ B-B'",
-      title:ab?"BẢNG THEO DÕI HỢP ĐỒNG A-B":(state.cg?"BẢNG THEO DÕI HỢP ĐỒNG CHUYÊN GIA":"BẢNG THEO DÕI HỢP ĐỒNG B-B'"),
-      note:`Ngày xuất: ${ngay}. Danh mục cập nhật: ${META.updated}. Bộ lọc: ${loc||"Tất cả"}. Đơn vị: đồng.`});
+    const wb=buildWorkbook(window.ExcelJS, DATA.A, DATA.B, `Ngày xuất: ${ngay}. Danh mục cập nhật: ${META.updated}. Không gồm hợp đồng chưa ký. Đơn vị: đồng.`);
     const buf=await wb.xlsx.writeBuffer();
     const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
-    a.download=`TheoDoiHD_${ab?"AB":(state.cg?"ChuyenGia":"BB")}_${ymd}.xlsx`; document.body.appendChild(a); a.click();
+    a.download=`TheoDoiHD_AB-BB_${ymd}.xlsx`; document.body.appendChild(a); a.click();
     setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
   }catch(e){ $("msg").hidden=false; $("msg").textContent="Không xuất được file Excel: "+e.message; }
   finally{ btn.disabled=false; btn.textContent="Xuất Excel"; }
