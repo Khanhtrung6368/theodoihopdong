@@ -177,7 +177,7 @@ select{font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);
     </div>
     <button class="btn" id="cgb" aria-pressed="false" hidden>Chuyên gia</button>
     <button class="btn" id="all" hidden>Mở tất cả</button>
-    <button class="btn" id="xls" title="Xuất toàn bộ HĐ A-B và B-B' đã ký ra file Excel">Xuất Excel</button>
+    <button class="btn" id="xls" title="Xuất toàn bộ HĐ A-B và B-B' đã ký ra file Excel (1 sheet)">Xuất Excel</button>
     <label class="btn up" id="bulk" hidden>Tải bản scan hàng loạt<input type="file" id="bulkin" accept="application/pdf" multiple hidden></label>
   </div>
   <div id="ro" class="banner" hidden>Tài khoản này chỉ có quyền xem.</div>
@@ -435,55 +435,61 @@ async function bulkUpload(list){
 }
 $("bulkin").addEventListener("change",e=>bulkUpload(e.target.files));
 
-/* ---------- Xuất Excel: 2 sheet HĐ A-B và HĐ B-B', toàn bộ danh mục, bỏ HĐ chưa ký ----------
+/* ---------- Xuất Excel: 1 sheet gộp HĐ A-B và B-B', toàn bộ danh mục, bỏ HĐ chưa ký ----------
    Định dạng: Times New Roman 12, chữ đen nền trắng, viền mảnh, lề trái 3 cm, phải/trên/dưới 2 cm, A4 ngang.
-   Tổng dùng SUBTOTAL(9,...) để tổng chung không cộng trùng tổng dự án. Chữ đỏ chỉ ở ô "Chờ bổ sung".
-   Cột bảo lãnh (sheet B-B'): web chưa có dữ liệu, để trống. */
+   Dòng nhóm (HĐ A-B / HĐ B-B', từng dự án) dùng SUBTOTAL(9,...) nên không cộng trùng.
+   Chưa có dữ liệu trên web, để trống: tên chủ đầu tư (Bên giao thầu HĐ A-B), giá trị tạm ứng, bảo lãnh. */
 function loadScript(src){ return new Promise((ok,ng)=>{ const s=document.createElement("script"); s.src=src; s.onload=ok; s.onerror=()=>ng(new Error("Không tải được thư viện Excel")); document.head.appendChild(s); }); }
 function toDate(s){ const m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(s||"").trim()); return m ? new Date(Date.UTC(+m[3],+m[2]-1,+m[1])) : null; }
 function signedOnly(list){ return list.map(p=>({...p,hd:p.hd.filter(h=>h.k!=="none")})).filter(p=>p.hd.length); }
-function addSheet(wb, ps, opt){
-  const ws=wb.addWorksheet(opt.sheet,{pageSetup:{paperSize:9,orientation:"landscape",fitToPage:true,fitToWidth:1,fitToHeight:0,
+const XGHI = {ok:"", tl:"Đã thanh lý, chờ ký lại"};
+function buildWorkbook(ExcelJS, A, Bb, note){
+  const wb=new ExcelJS.Workbook(); wb.creator="Stellar - Phòng Đấu thầu";
+  const ws=wb.addWorksheet("Theo dõi HĐ",{pageSetup:{paperSize:9,orientation:"landscape",fitToPage:true,fitToWidth:1,fitToHeight:0,
     margins:{left:3/2.54,right:2/2.54,top:2/2.54,bottom:2/2.54,header:0.3,footer:0.3},printTitlesRow:"4:4"}});
   const F={name:"Times New Roman",size:12,color:{argb:"FF000000"}};
   const B={style:"thin",color:{argb:"FF000000"}}, BD={top:B,left:B,bottom:B,right:B};
-  const cols=[["TT",6],["Nội dung",50],["Số hợp đồng",24],["Ngày ký",13],["Giá trị HĐ (đồng)",20],["Tình trạng",20]];
-  if(opt.bl) cols.push(["Bảo lãnh tạm ứng",20],["Bảo lãnh thực hiện HĐ",20]);
+  const cols=[["TT",6],["Loại HĐ",10],["Dự án",16],["Bên giao thầu",22],["Bên nhận thầu",22],["Phạm vi công việc",45],["Số hợp đồng",24],
+    ["Ngày ký",13],["Giá trị HĐ (đồng)",19],["Giá trị tạm ứng",18],["Ghi chú",22],["Bảo lãnh tạm ứng",18],["Bảo lãnh thực hiện HĐ",18]];
   ws.columns=cols.map(([,w])=>({width:w}));
-  const n=cols.length, cGT=5, L=c=>ws.getColumn(c).letter;
+  const n=cols.length, cGT=9, cTU=10;
   const fmtRow=(row,bold)=>{ for(let i=1;i<=n;i++){ const c=row.getCell(i); c.font={...F,bold:!!bold}; c.border=BD; c.alignment={vertical:"top",wrapText:true}; } };
-  ws.mergeCells(1,1,1,n); ws.getCell(1,1).value=opt.title;
+  const sumRow=(row,r1,r2)=>{ for(const c of [cGT,cTU]){ const L=ws.getColumn(c).letter; const x=row.getCell(c);
+    x.value={formula:`SUBTOTAL(9,${L}${r1}:${L}${r2})`}; x.numFmt="#,##0"; x.alignment={horizontal:"right",vertical:"top"}; } };
+  ws.mergeCells(1,1,1,n); ws.getCell(1,1).value="BẢNG THEO DÕI HỢP ĐỒNG";
   ws.getCell(1,1).font={...F,size:14,bold:true}; ws.getCell(1,1).alignment={horizontal:"center"};
-  ws.mergeCells(2,1,2,n); ws.getCell(2,1).value=opt.note; ws.getCell(2,1).font={...F,italic:true};
+  ws.mergeCells(2,1,2,n); ws.getCell(2,1).value=note; ws.getCell(2,1).font={...F,italic:true};
   const hr=ws.getRow(4); cols.forEach(([t],i)=>hr.getCell(i+1).value=t); fmtRow(hr,true);
   for(let i=1;i<=n;i++) hr.getCell(i).alignment={horizontal:"center",vertical:"middle",wrapText:true};
-  let r=5, tt=0; const first=r;
-  for(const p of ps){
-    const pr=r++; const row=ws.getRow(pr);
-    row.getCell(2).value=`${p.ten} (${p.hd.length} hợp đồng)`;
-    for(const h of p.hd){
-      const x=ws.getRow(r); tt++;
-      [tt, h.nd||"", h.so||(h.ask?"Chờ bổ sung":""), toDate(h.ngay)||h.ngay||"", h.gt==null?(h.ask?"Chờ bổ sung":null):h.gt, ST[h.k]||""]
-        .forEach((val,i)=>x.getCell(i+1).value=val);
-      fmtRow(x);
-      x.getCell(1).alignment={horizontal:"center",vertical:"top"};
-      x.getCell(4).numFmt="dd/mm/yyyy"; x.getCell(4).alignment={horizontal:"center",vertical:"top"};
-      x.getCell(cGT).numFmt="#,##0"; x.getCell(cGT).alignment={horizontal:"right",vertical:"top"};
-      if(h.ask) [3,cGT].forEach(c=>{ if(x.getCell(c).value==="Chờ bổ sung") x.getCell(c).font={...F,color:{argb:"FFFF0000"}}; });
-      r++;
+  let r=5, tt=0;
+  for(const [loai,list] of [["A-B",A],["B-B'",Bb]]){
+    const ps=signedOnly(list); if(!ps.length) continue;
+    const sr=r++; const srow=ws.getRow(sr); srow.getCell(6).value=`HỢP ĐỒNG ${loai}`;
+    for(const p of ps){
+      const pr=r++; const row=ws.getRow(pr);
+      row.getCell(6).value=`${p.ten} (${p.hd.length} hợp đồng)`;
+      for(const h of p.hd){
+        const x=ws.getRow(r); tt++;
+        const nd=h.nd||""; const i=nd.indexOf(" – ");
+        const giao = loai==="A-B" ? "" : "Stellar";
+        const nhan = loai==="A-B" ? "Stellar" : (i>0 ? nd.slice(0,i).trim() : "");
+        const pv = loai==="A-B" ? nd : (i>0 ? nd.slice(i+3).trim() : nd);
+        [tt, loai, p.ten, giao, nhan, pv, h.so||(h.ask?"Chờ bổ sung":""), toDate(h.ngay)||h.ngay||"",
+         h.gt==null?(h.ask?"Chờ bổ sung":null):h.gt, null, h.k in XGHI ? XGHI[h.k] : (ST[h.k]||"")]
+          .forEach((val,j)=>x.getCell(j+1).value=val);
+        fmtRow(x);
+        [1,2,8].forEach(c=>x.getCell(c).alignment={horizontal:"center",vertical:"top"});
+        x.getCell(8).numFmt="dd/mm/yyyy";
+        [cGT,cTU].forEach(c=>{ x.getCell(c).numFmt="#,##0"; x.getCell(c).alignment={horizontal:"right",vertical:"top"}; });
+        if(h.ask) [7,cGT].forEach(c=>{ if(x.getCell(c).value==="Chờ bổ sung") x.getCell(c).font={...F,color:{argb:"FFFF0000"}}; });
+        r++;
+      }
+      fmtRow(row,true); sumRow(row,pr+1,r-1);
     }
-    row.getCell(cGT).value={formula:`SUBTOTAL(9,${L(cGT)}${pr+1}:${L(cGT)}${r-1})`};
-    fmtRow(row,true); row.getCell(cGT).numFmt="#,##0"; row.getCell(cGT).alignment={horizontal:"right",vertical:"top"};
+    fmtRow(srow,true); sumRow(srow,sr+1,r-1);
   }
-  const tr=ws.getRow(r); tr.getCell(2).value="TỔNG CỘNG";
-  tr.getCell(cGT).value={formula:`SUBTOTAL(9,${L(cGT)}${first}:${L(cGT)}${r-1})`};
-  fmtRow(tr,true); tr.getCell(cGT).numFmt="#,##0"; tr.getCell(cGT).alignment={horizontal:"right"};
+  ws.autoFilter={from:{row:4,column:1},to:{row:4,column:n}};
   ws.views=[{state:"frozen",ySplit:4}];
-}
-function buildWorkbook(ExcelJS, A, Bb, note){
-  const wb=new ExcelJS.Workbook(); wb.creator="Stellar - Phòng Đấu thầu";
-  addSheet(wb, signedOnly(A), {sheet:"HĐ A-B", title:"BẢNG THEO DÕI HỢP ĐỒNG A-B", note});
-  addSheet(wb, signedOnly(Bb), {sheet:"HĐ B-B' (thầu phụ)", title:"BẢNG THEO DÕI HỢP ĐỒNG B-B'", note, bl:true});
   return wb;
 }
 async function exportExcel(){
@@ -496,7 +502,7 @@ async function exportExcel(){
     const wb=buildWorkbook(window.ExcelJS, DATA.A, DATA.B, `Ngày xuất: ${ngay}. Danh mục cập nhật: ${META.updated}. Không gồm hợp đồng chưa ký. Đơn vị: đồng.`);
     const buf=await wb.xlsx.writeBuffer();
     const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
-    a.download=`TheoDoiHD_AB-BB_${ymd}.xlsx`; document.body.appendChild(a); a.click();
+    a.download=`TheoDoiHD_${ymd}.xlsx`; document.body.appendChild(a); a.click();
     setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
   }catch(e){ $("msg").hidden=false; $("msg").textContent="Không xuất được file Excel: "+e.message; }
   finally{ btn.disabled=false; btn.textContent="Xuất Excel"; }
