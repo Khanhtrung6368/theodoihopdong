@@ -373,6 +373,8 @@ function hhState(d){ /* dd/mm/yyyy -> 'het' | 'sap' | '' */
 }
 function blHtml(lbl,b){
   if(!b) return "";
+  /* HĐ không yêu cầu BL (Không áp dụng / chưa xác định) thì để trống */
+  if(/^(Chờ|Không)/.test(b.so||"") && b.nh==null && b.gt==null && !b.hh) return "";
   const st=hhState(b.hh);
   const so=/^Chờ/.test(b.so||"")?"Chưa cập nhật":/^HĐ (có )?yêu cầu/.test(b.so||"")?"HĐ có yêu cầu BL - chờ bổ sung":/^Không áp dụng/.test(b.so||"")?"Không áp dụng":b.so&&("Số "+esc(b.so));
   const parts=[so, b.nh&&esc(b.nh), b.gt!=null&&money(b.gt)].filter(Boolean).join(" · ");
@@ -471,7 +473,7 @@ $("bulkin").addEventListener("change",e=>bulkUpload(e.target.files));
    Bên giao/nhận thầu, tạm ứng, bảo lãnh lấy từ dữ liệu bảng thống kê (cột Q trở đi). */
 function loadScript(src){ return new Promise((ok,ng)=>{ const s=document.createElement("script"); s.src=src; s.onload=ok; s.onerror=()=>ng(new Error("Không tải được thư viện Excel")); document.head.appendChild(s); }); }
 function toDate(s){ const m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(s||"").trim()); return m ? new Date(Date.UTC(+m[3],+m[2]-1,+m[1])) : null; }
-function blTxt(b){ if(!b) return ""; if(/^HĐ (có )?yêu cầu/.test(b.so||"")) return "HĐ có yêu cầu BL - chờ bổ sung"; return [b.so&&!/^(Chờ|HĐ yêu cầu|Không)/.test(b.so)?"Số "+b.so:(b.so||""), b.nh, b.gt!=null?Number(b.gt).toLocaleString("vi-VN"):"", b.hh&&"Hết hạn "+b.hh].filter(Boolean).join("; "); }
+function blTxt(b){ if(!b) return ""; if(/^(Chờ|Không)/.test(b.so||"") && b.nh==null && b.gt==null && !b.hh) return ""; if(/^HĐ (có )?yêu cầu/.test(b.so||"")) return "HĐ có yêu cầu BL - chờ bổ sung"; return [b.so&&!/^(Chờ|HĐ yêu cầu|Không)/.test(b.so)?"Số "+b.so:(b.so||""), b.nh, b.gt!=null?Number(b.gt).toLocaleString("vi-VN"):"", b.hh&&"Hết hạn "+b.hh].filter(Boolean).join("; "); }
 function signedOnly(list){ return list.map(p=>({...p,hd:p.hd.filter(h=>h.k!=="none")})).filter(p=>p.hd.length); }
 const XGHI = {ok:"", tl:"Đã thanh lý, chờ ký lại"};
 function buildWorkbook(ExcelJS, A, Bb, note){
