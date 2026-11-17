@@ -209,7 +209,7 @@ const state = {tab:"ab", f:"all", pj:"", q:"", show:true, cg:false, view:"card",
 const $ = id => document.getElementById(id);
 const fmt = n => n==null ? "—" : Math.round(n).toLocaleString("vi-VN");
 const money = n => n==null ? "—" : (state.show ? fmt(n)+" đ" : "••••••• đ");
-const esc = s => String(s==null?"":s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const esc = s => String(s==null?"":s).replace(/chờ anh bổ sung/gi, m=>m[0]==="C"?"Chờ bổ sung":"chờ bổ sung").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const total = list => list.reduce((a,h)=>a+(h.gt||0),0);
 const T = () => TABS[state.tab];
 const isCG = h => /HĐCG/i.test(h.so||"") || /^NhieuDA_/.test(h.key||"");
@@ -376,7 +376,7 @@ function blHtml(lbl,b){
   /* HĐ không yêu cầu BL (Không áp dụng / chưa xác định) thì để trống */
   if(/^(Chờ|Không)/.test(b.so||"") && b.nh==null && b.gt==null && !b.hh) return "";
   const st=hhState(b.hh);
-  const so=/^Chờ/.test(b.so||"")?"Chưa cập nhật":/^HĐ (có )?yêu cầu/.test(b.so||"")?"HĐ có yêu cầu BL - chờ bổ sung":/^Không áp dụng/.test(b.so||"")?"Không áp dụng":b.so&&("Số "+esc(b.so));
+  const so=/^Chờ/.test(b.so||"")?"Chờ bổ sung":/^HĐ (có )?yêu cầu/.test(b.so||"")?"HĐ có yêu cầu BL - chờ bổ sung":/^Không áp dụng/.test(b.so||"")?"Không áp dụng":b.so&&("Số "+esc(b.so));
   const parts=[so, b.nh&&esc(b.nh), b.gt!=null&&money(b.gt)].filter(Boolean).join(" · ");
   const hh=b.hh?`<span class="hh ${st}">${st==="het"?"Đã hết hạn ":st==="sap"?"Sắp hết hạn ":"Hết hạn "}${esc(b.hh)}</span>`:"";
   return `<div class="ex"><span class="exl">${lbl}</span><span>${parts||"—"} ${hh}</span></div>`;
@@ -388,7 +388,7 @@ function extraHtml(h){
   if(ben) o+=`<div class="ex"><span class="exl">${benL}</span><span>${esc(ben)}</span></div>`;
   const tuL=h.ht||"Tạm ứng";
   if(h.tu!=null||h.tu_pct!=null) o+=`<div class="ex"><span class="exl">${esc(tuL)}</span><span>${h.tu_pct!=null?(Math.round(h.tu_pct*1000)/10)+"%":""}${h.tu_pct!=null&&h.tu!=null?" · ":""}${h.tu!=null?money(h.tu):""}</span></div>`;
-  else if(h.tu_txt) o+=`<div class="ex"><span class="exl">${esc(tuL)}</span><span>${/^Chờ/.test(h.tu_txt)?"Chưa cập nhật":esc(h.tu_txt)}</span></div>`;
+  else if(h.tu_txt) o+=`<div class="ex"><span class="exl">${esc(tuL)}</span><span>${/^Chờ/.test(h.tu_txt)?"Chờ bổ sung":esc(h.tu_txt)}</span></div>`;
   if(!isAB) o+=blHtml("BL tạm ứng",h.blt)+blHtml("BL thực hiện HĐ",h.blh);
   return o?`<div class="exw">${o}</div>`:"";
 }
@@ -473,7 +473,7 @@ $("bulkin").addEventListener("change",e=>bulkUpload(e.target.files));
    Bên giao/nhận thầu, tạm ứng, bảo lãnh lấy từ dữ liệu bảng thống kê (cột Q trở đi). */
 function loadScript(src){ return new Promise((ok,ng)=>{ const s=document.createElement("script"); s.src=src; s.onload=ok; s.onerror=()=>ng(new Error("Không tải được thư viện Excel")); document.head.appendChild(s); }); }
 function toDate(s){ const m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(s||"").trim()); return m ? new Date(Date.UTC(+m[3],+m[2]-1,+m[1])) : null; }
-function blTxt(b){ if(!b) return ""; if(/^(Chờ|Không)/.test(b.so||"") && b.nh==null && b.gt==null && !b.hh) return ""; if(/^HĐ (có )?yêu cầu/.test(b.so||"")) return "HĐ có yêu cầu BL - chờ bổ sung"; return [b.so&&!/^(Chờ|HĐ yêu cầu|Không)/.test(b.so)?"Số "+b.so:(b.so||""), b.nh, b.gt!=null?Number(b.gt).toLocaleString("vi-VN"):"", b.hh&&"Hết hạn "+b.hh].filter(Boolean).join("; "); }
+function blTxt(b){ b=b&&{...b,so:b.so&&String(b.so).replace(/chờ anh bổ sung/gi,"Chờ bổ sung")}; if(!b) return ""; if(/^(Chờ|Không)/.test(b.so||"") && b.nh==null && b.gt==null && !b.hh) return ""; if(/^HĐ (có )?yêu cầu/.test(b.so||"")) return "HĐ có yêu cầu BL - chờ bổ sung"; return [b.so&&!/^(Chờ|HĐ yêu cầu|Không)/.test(b.so)?"Số "+b.so:(b.so||""), b.nh, b.gt!=null?Number(b.gt).toLocaleString("vi-VN"):"", b.hh&&"Hết hạn "+b.hh].filter(Boolean).join("; "); }
 function signedOnly(list){ return list.map(p=>({...p,hd:p.hd.filter(h=>h.k!=="none")})).filter(p=>p.hd.length); }
 const XGHI = {ok:"", tl:"Đã thanh lý, chờ ký lại"};
 function buildWorkbook(ExcelJS, A, Bb, note){
@@ -512,7 +512,7 @@ function buildWorkbook(ExcelJS, A, Bb, note){
       [tt, loai, ten, giao, nhan, pv, h.so||(h.ask?"Chờ bổ sung":""), toDate(h.ngay)||h.ngay||"",
        h.gt==null?(h.ask?"Chờ bổ sung":null):h.gt, h.tu!=null?h.tu:(h.tu_txt||null), h.k in XGHI ? XGHI[h.k] : (ST[h.k]||""),
        loai==="A-B"?"":blTxt(h.blt), loai==="A-B"?"":blTxt(h.blh)]
-        .forEach((val,j)=>x.getCell(j+1).value=val);
+        .forEach((val,j)=>x.getCell(j+1).value=typeof val==="string"?val.replace(/chờ anh bổ sung/gi,"Chờ bổ sung"):val);
       fmtRow(x);
       [1,2,8].forEach(c=>x.getCell(c).alignment={horizontal:"center",vertical:"top"});
       x.getCell(8).numFmt="dd/mm/yyyy";
