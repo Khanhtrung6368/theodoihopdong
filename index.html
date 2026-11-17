@@ -141,6 +141,12 @@ label.up{cursor:pointer;display:inline-block}
 select{font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg);max-width:220px}
 .files{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .files .btn{font-size:12px;padding:3px 9px}
+.exw{margin-top:6px;display:grid;gap:3px;font-size:12.5px}
+.ex{display:flex;gap:8px;align-items:baseline}
+.exl{flex:0 0 108px;color:var(--muted)}
+.hh{white-space:nowrap;color:var(--muted)}
+.hh.sap{color:#b26a00;font-weight:700}
+.hh.het{color:#c62828;font-weight:700}
 .btn.rd{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
 .btn.rd:hover{filter:brightness(1.1)}
 .btn.rd2{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
@@ -358,7 +364,31 @@ function renderChips(){
 function lineHtml(h){
   return `<div class="hd"><div class="r1"><div><div class="nd">${esc(h.nd||"—")}</div><div class="so ${h.ask?"ask":""}">${esc(h.so||(h.ask?"Chờ bổ sung số HĐ":"Chưa có số hợp đồng"))}</div>${h.da?`<div class="da">Dự án: ${esc(h.da.join(", "))}</div>`:""}</div><span class="tag s-${h.k}">${ST[h.k]}</span></div>
   <div class="r2"><span>Ngày ký: ${esc(h.ngay||"—")}</span><span class="v ${h.ask&&h.gt==null?"ask":""}">${h.gt==null&&h.ask?"Chờ bổ sung":money(h.gt)}</span></div>
-  ${filesHtml(h)}</div>`;
+  ${extraHtml(h)}${filesHtml(h)}</div>`;
+}
+function hhState(d){ /* dd/mm/yyyy -> 'het' | 'sap' | '' */
+  const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(d||""); if(!m) return "";
+  const t=new Date(+m[3],+m[2]-1,+m[1]), now=new Date(); now.setHours(0,0,0,0);
+  const days=(t-now)/864e5; return days<0?"het":days<=30?"sap":"";
+}
+function blHtml(lbl,b){
+  if(!b) return "";
+  const st=hhState(b.hh);
+  const so=/^Chờ/.test(b.so||"")?"Chưa cập nhật":/^HĐ yêu cầu/.test(b.so||"")?"HĐ yêu cầu, chưa cập nhật":/^Không áp dụng/.test(b.so||"")?"Không áp dụng":b.so&&("Số "+esc(b.so));
+  const parts=[so, b.nh&&esc(b.nh), b.gt!=null&&money(b.gt)].filter(Boolean).join(" · ");
+  const hh=b.hh?`<span class="hh ${st}">${st==="het"?"Đã hết hạn ":st==="sap"?"Sắp hết hạn ":"Hết hạn "}${esc(b.hh)}</span>`:"";
+  return `<div class="ex"><span class="exl">${lbl}</span><span>${parts||"—"} ${hh}</span></div>`;
+}
+function extraHtml(h){
+  const isAB=state.tab==="ab";
+  const ben=isAB?h.bgt:h.bnt, benL=isAB?"Chủ đầu tư":"Nhà thầu";
+  let o="";
+  if(ben) o+=`<div class="ex"><span class="exl">${benL}</span><span>${esc(ben)}</span></div>`;
+  const tuL=h.ht||"Tạm ứng";
+  if(h.tu!=null||h.tu_pct!=null) o+=`<div class="ex"><span class="exl">${esc(tuL)}</span><span>${h.tu_pct!=null?(Math.round(h.tu_pct*1000)/10)+"%":""}${h.tu_pct!=null&&h.tu!=null?" · ":""}${h.tu!=null?money(h.tu):""}</span></div>`;
+  else if(h.tu_txt) o+=`<div class="ex"><span class="exl">${esc(tuL)}</span><span>${/^Chờ/.test(h.tu_txt)?"Chưa cập nhật":esc(h.tu_txt)}</span></div>`;
+  o+=blHtml("BL tạm ứng",h.blt)+blHtml("BL thực hiện HĐ",h.blh);
+  return o?`<div class="exw">${o}</div>`:"";
 }
 function renderCards(ps){
   if(!ps.length){$("out").innerHTML=`<div class="empty">Không tìm thấy hợp đồng phù hợp.</div>`;return;}
@@ -373,9 +403,9 @@ function renderCards(ps){
 }
 function renderTable(ps){
   if(!ps.length){$("out").innerHTML=`<div class="empty">Không tìm thấy hợp đồng phù hợp.</div>`;return;}
-  $("out").innerHTML=`<div class="tw"><table><thead><tr><th>Dự án</th><th>Nội dung</th><th>Số hợp đồng</th><th>Tình trạng</th><th>Ngày ký</th><th class="num">Giá trị HĐ</th><th>Bản scan</th></tr></thead><tbody>${ps.map(p=>
-    `<tr class="pj"><td colspan="5">${esc(p.ten)} · ${p.hd.length} hợp đồng</td><td class="num m">${money(total(p.hd))}</td><td></td></tr>`+
-    p.hd.map(h=>{const f=h.files[0]&&state.files[stem(h.files[0])];return `<tr><td>${esc((h.da||[]).join(", "))}</td><td>${esc(h.nd||"—")}</td><td class="m ${h.ask?"ask":""}">${esc(h.so||(h.ask?"Chờ bổ sung":"—"))}</td><td><span class="tag s-${h.k}">${ST[h.k]}</span></td><td>${esc(h.ngay||"—")}</td><td class="num m">${money(h.gt)}</td><td>${f?`<button class="btn rd" data-open="${esc(stem(h.files[0]))}">Đọc</button>`:(h.files.length?"Chưa tải":"—")}</td></tr>`}).join("")).join("")}</tbody></table></div>`;
+  $("out").innerHTML=`<div class="tw"><table><thead><tr><th>Dự án</th><th>Nội dung</th><th>Số hợp đồng</th><th>Tình trạng</th><th>Ngày ký</th><th class="num">Giá trị HĐ</th><th>${state.tab==="ab"?"Chủ đầu tư":"Nhà thầu"}</th><th class="num">Tạm ứng</th><th>BL tạm ứng hết hạn</th><th>BL thực hiện hết hạn</th><th>Bản scan</th></tr></thead><tbody>${ps.map(p=>
+    `<tr class="pj"><td colspan="5">${esc(p.ten)} · ${p.hd.length} hợp đồng</td><td class="num m">${money(total(p.hd))}</td><td></td><td class="num m">${money(p.hd.reduce((a,h)=>a+(h.tu||0),0))}</td><td></td><td></td><td></td></tr>`+
+    p.hd.map(h=>{const f=h.files[0]&&state.files[stem(h.files[0])];return `<tr><td>${esc((h.da||[]).join(", "))}</td><td>${esc(h.nd||"—")}</td><td class="m ${h.ask?"ask":""}">${esc(h.so||(h.ask?"Chờ bổ sung":"—"))}</td><td><span class="tag s-${h.k}">${ST[h.k]}</span></td><td>${esc(h.ngay||"—")}</td><td class="num m">${money(h.gt)}</td><td>${esc((state.tab==="ab"?h.bgt:h.bnt)||"—")}</td><td class="num m">${h.tu!=null?money(h.tu):"—"}</td><td>${h.blt&&h.blt.hh?`<span class="hh ${hhState(h.blt.hh)}">${esc(h.blt.hh)}</span>`:"—"}</td><td>${h.blh&&h.blh.hh?`<span class="hh ${hhState(h.blh.hh)}">${esc(h.blh.hh)}</span>`:"—"}</td><td>${f?`<button class="btn rd" data-open="${esc(stem(h.files[0]))}">Đọc</button>`:(h.files.length?"Chưa tải":"—")}</td></tr>`}).join("")).join("")}</tbody></table></div>`;
 }
 function render(){
 
@@ -438,9 +468,10 @@ $("bulkin").addEventListener("change",e=>bulkUpload(e.target.files));
 /* ---------- Xuất Excel: 1 sheet gộp HĐ A-B và B-B', toàn bộ danh mục, bỏ HĐ chưa ký ----------
    Định dạng: Times New Roman 12, chữ đen nền trắng, viền mảnh, lề trái 3 cm, phải/trên/dưới 2 cm, A4 ngang.
    Gộp HĐ A-B và B-B' theo từng dự án; cuối bảng có hàng tổng A-B, B-B' và đã thanh lý (SUMIFS).
-   Chưa có dữ liệu trên web, để trống: tên chủ đầu tư (Bên giao thầu HĐ A-B), giá trị tạm ứng, bảo lãnh. */
+   Bên giao/nhận thầu, tạm ứng, bảo lãnh lấy từ dữ liệu bảng thống kê (cột Q trở đi). */
 function loadScript(src){ return new Promise((ok,ng)=>{ const s=document.createElement("script"); s.src=src; s.onload=ok; s.onerror=()=>ng(new Error("Không tải được thư viện Excel")); document.head.appendChild(s); }); }
 function toDate(s){ const m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(s||"").trim()); return m ? new Date(Date.UTC(+m[3],+m[2]-1,+m[1])) : null; }
+function blTxt(b){ if(!b) return ""; return [b.so&&!/^(Chờ|HĐ yêu cầu|Không)/.test(b.so)?"Số "+b.so:(b.so||""), b.nh, b.gt!=null?Number(b.gt).toLocaleString("vi-VN"):"", b.hh&&"Hết hạn "+b.hh].filter(Boolean).join("; "); }
 function signedOnly(list){ return list.map(p=>({...p,hd:p.hd.filter(h=>h.k!=="none")})).filter(p=>p.hd.length); }
 const XGHI = {ok:"", tl:"Đã thanh lý, chờ ký lại"};
 function buildWorkbook(ExcelJS, A, Bb, note){
@@ -473,11 +504,12 @@ function buildWorkbook(ExcelJS, A, Bb, note){
     for(const [loai,h] of items){
       const x=ws.getRow(r); tt++;
       const nd=h.nd||""; const i=nd.indexOf(" – ");
-      const giao = loai==="A-B" ? "" : "Stellar";
-      const nhan = loai==="A-B" ? "Stellar" : (i>0 ? nd.slice(0,i).trim() : "");
+      const giao = h.bgt || (loai==="A-B" ? "" : "Stellar");
+      const nhan = h.bnt || (loai==="A-B" ? "Stellar" : (i>0 ? nd.slice(0,i).trim() : ""));
       const pv = loai==="A-B" ? nd : (i>0 ? nd.slice(i+3).trim() : nd);
       [tt, loai, ten, giao, nhan, pv, h.so||(h.ask?"Chờ bổ sung":""), toDate(h.ngay)||h.ngay||"",
-       h.gt==null?(h.ask?"Chờ bổ sung":null):h.gt, null, h.k in XGHI ? XGHI[h.k] : (ST[h.k]||"")]
+       h.gt==null?(h.ask?"Chờ bổ sung":null):h.gt, h.tu!=null?h.tu:(h.tu_txt||null), h.k in XGHI ? XGHI[h.k] : (ST[h.k]||""),
+       blTxt(h.blt), blTxt(h.blh)]
         .forEach((val,j)=>x.getCell(j+1).value=val);
       fmtRow(x);
       [1,2,8].forEach(c=>x.getCell(c).alignment={horizontal:"center",vertical:"top"});
