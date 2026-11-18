@@ -183,7 +183,7 @@ select{font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);
     </div>
     <button class="btn" id="cgb" aria-pressed="false" hidden>Chuyên gia</button>
     <button class="btn" id="all" hidden>Mở tất cả</button>
-    <button class="btn" id="xls" title="Xuất toàn bộ HĐ A-B và B-B' đã ký ra file Excel (1 sheet)">Xuất Excel</button>
+    <button class="btn" id="xls" title="Xuất HĐ A-B và B-B' đã ký ra file Excel: sheet tổng và sheet theo năm ký">Xuất Excel</button>
     <label class="btn up" id="bulk" hidden>Tải bản scan hàng loạt<input type="file" id="bulkin" accept="application/pdf" multiple hidden></label>
   </div>
   <div id="ro" class="banner" hidden>Tài khoản này chỉ có quyền xem.</div>
@@ -467,7 +467,7 @@ async function bulkUpload(list){
 }
 $("bulkin").addEventListener("change",e=>bulkUpload(e.target.files));
 
-/* ---------- Xuất Excel: 1 sheet gộp HĐ A-B và B-B', toàn bộ danh mục, bỏ HĐ chưa ký ----------
+/* ---------- Xuất Excel: sheet "Theo dõi HĐ" gộp HĐ A-B và B-B' (toàn bộ, bỏ HĐ chưa ký) + sheet theo năm ký (2024, 2025, 2026...) ----------
    Định dạng: Times New Roman 12, chữ đen nền trắng, viền mảnh, lề trái 3 cm, phải/trên/dưới 2 cm, A4 ngang.
    Gộp HĐ A-B và B-B' theo từng dự án; cuối bảng có hàng tổng A-B, B-B' và đã thanh lý (SUMIFS).
    Bên giao/nhận thầu, tạm ứng, bảo lãnh lấy từ dữ liệu bảng thống kê (cột Q trở đi). */
@@ -476,9 +476,24 @@ function toDate(s){ const m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(s||"")
 function blTxt(b){ b=b&&{...b,so:b.so&&String(b.so).replace(/chờ anh bổ sung/gi,"Chờ bổ sung")}; if(!b) return ""; if(/^(Chờ|Không)/.test(b.so||"") && b.nh==null && b.gt==null && !b.hh) return ""; if(/^HĐ (có )?yêu cầu/.test(b.so||"")) return "HĐ có yêu cầu BL - chờ bổ sung"; return [b.so&&!/^(Chờ|HĐ yêu cầu|Không)/.test(b.so)?"Số "+b.so:(b.so||""), b.nh, b.gt!=null?Number(b.gt).toLocaleString("vi-VN"):"", b.hh&&"Hết hạn "+b.hh].filter(Boolean).join("; "); }
 function signedOnly(list){ return list.map(p=>({...p,hd:p.hd.filter(h=>h.k!=="none")})).filter(p=>p.hd.length); }
 const XGHI = {ok:"", tl:"Đã thanh lý, chờ ký lại"};
+/* Năm ký: ưu tiên h.nam (anh chỉ định, từ nam_ky_bo_sung.json), rồi năm của ngày ký, rồi năm trong số HĐ (/20xx) */
+function namKy(h){ if(h.nam) return String(h.nam); const d=/(\d{4})\s*$/.exec(String(h.ngay||"").trim()); if(d) return d[1];
+  const m=/\/(20\d\d)/.exec(String(h.so||"")); return m?m[1]:null; }
 function buildWorkbook(ExcelJS, A, Bb, note){
   const wb=new ExcelJS.Workbook(); wb.creator="Stellar - Phòng Đấu thầu";
-  const ws=wb.addWorksheet("Theo dõi HĐ",{pageSetup:{paperSize:9,orientation:"landscape",fitToPage:true,fitToWidth:1,fitToHeight:0,
+  /* Gộp theo dự án: thứ tự dự án theo A-B, dự án chỉ có B-B' xếp sau, "Các Hợp đồng khác" cuối cùng */
+  const pm=new Map();
+  for(const [loai,list] of [["A-B",A],["B-B'",Bb]]) for(const p of signedOnly(list)){
+    if(!pm.has(p.ten)) pm.set(p.ten,[]); for(const h of p.hd) pm.get(p.ten).push([loai,h]); }
+  const names=[...pm.keys()].sort((x,y)=>(x==="Các Hợp đồng khác")-(y==="Các Hợp đồng khác"));
+  addSheet(wb,"Theo dõi HĐ","BẢNG THEO DÕI HỢP ĐỒNG",note,names,pm,()=>true);
+  /* Sheet theo năm ký (2024, 2025, 2026...): chỉ các năm có HĐ; HĐ chưa xác định được năm không vào sheet năm nào */
+  const years=[...new Set([...pm.values()].flat().map(([,h])=>namKy(h)).filter(Boolean))].sort();
+  for(const y of years) addSheet(wb,y,`BẢNG THEO DÕI HỢP ĐỒNG KÝ NĂM ${y}`,note,names,pm,h=>namKy(h)===y);
+  return wb;
+}
+function addSheet(wb,sheetName,title,note,names,pm,keep){
+  const ws=wb.addWorksheet(sheetName,{pageSetup:{paperSize:9,orientation:"landscape",fitToPage:true,fitToWidth:1,fitToHeight:0,
     margins:{left:3/2.54,right:2/2.54,top:2/2.54,bottom:2/2.54,header:0.3,footer:0.3},printTitlesRow:"4:4"}});
   const F={name:"Times New Roman",size:12,color:{argb:"FF000000"}};
   const B={style:"thin",color:{argb:"FF000000"}}, BD={top:B,left:B,bottom:B,right:B};
@@ -487,19 +502,15 @@ function buildWorkbook(ExcelJS, A, Bb, note){
   ws.columns=cols.map(([,w])=>({width:w}));
   const n=cols.length, cGT=9, cTU=10, cGC=11, L=c=>ws.getColumn(c).letter;
   const fmtRow=(row,bold)=>{ for(let i=1;i<=n;i++){ const c=row.getCell(i); c.font={...F,bold:!!bold}; c.border=BD; c.alignment={vertical:"top",wrapText:true}; } };
-  ws.mergeCells(1,1,1,n); ws.getCell(1,1).value="BẢNG THEO DÕI HỢP ĐỒNG";
+  ws.mergeCells(1,1,1,n); ws.getCell(1,1).value=title;
   ws.getCell(1,1).font={...F,size:14,bold:true}; ws.getCell(1,1).alignment={horizontal:"center"};
   ws.mergeCells(2,1,2,n); ws.getCell(2,1).value=note; ws.getCell(2,1).font={...F,italic:true};
   const hr=ws.getRow(4); cols.forEach(([t],i)=>hr.getCell(i+1).value=t); fmtRow(hr,true);
   for(let i=1;i<=n;i++) hr.getCell(i).alignment={horizontal:"center",vertical:"middle",wrapText:true};
-  /* Gộp theo dự án: thứ tự dự án theo A-B, dự án chỉ có B-B' xếp sau, "Các Hợp đồng khác" cuối cùng */
-  const pm=new Map();
-  for(const [loai,list] of [["A-B",A],["B-B'",Bb]]) for(const p of signedOnly(list)){
-    if(!pm.has(p.ten)) pm.set(p.ten,[]); for(const h of p.hd) pm.get(p.ten).push([loai,h]); }
-  const names=[...pm.keys()].sort((x,y)=>(x==="Các Hợp đồng khác")-(y==="Các Hợp đồng khác"));
   let r=5, tt=0; const first=r;
   for(const ten of names){
-    const items=pm.get(ten), nA=items.filter(x=>x[0]==="A-B").length, nB=items.length-nA;
+    const items=pm.get(ten).filter(([,h])=>keep(h)); if(!items.length) continue;
+    const nA=items.filter(x=>x[0]==="A-B").length, nB=items.length-nA;
     const row=ws.getRow(r++);
     row.getCell(6).value=`${ten} (`+[nA?`${nA} HĐ A-B`:"", nB?`${nB} HĐ B-B'`:""].filter(Boolean).join(", ")+")";
     fmtRow(row,true);
@@ -522,7 +533,7 @@ function buildWorkbook(ExcelJS, A, Bb, note){
     }
   }
   /* Hàng tổng: SUMIFS theo cột Loại HĐ và Ghi chú trên vùng dữ liệu (dòng dự án không có Loại HĐ nên không bị cộng) */
-  const last=r-1, rg=c=>`$${L(c)}$${first}:$${L(c)}$${last}`;
+  const last=Math.max(r-1,first), rg=c=>`$${L(c)}$${first}:$${L(c)}$${last}`;
   const tot=[["Tổng giá trị HĐ A-B",rg(2),'"A-B"'],["Tổng giá trị HĐ B-B'",rg(2),`"B-B'"`],["Giá trị HĐ đã thanh lý",rg(cGC),'"Đã thanh lý*"']];
   for(const [lb,crg,crit] of tot){
     const t=ws.getRow(r++); t.getCell(6).value=lb; fmtRow(t,true);
@@ -530,7 +541,6 @@ function buildWorkbook(ExcelJS, A, Bb, note){
   }
   ws.autoFilter={from:{row:4,column:1},to:{row:4,column:n}};
   ws.views=[{state:"frozen",ySplit:4}];
-  return wb;
 }
 async function exportExcel(){
   const btn=$("xls");
