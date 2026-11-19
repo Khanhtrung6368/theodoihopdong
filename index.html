@@ -71,8 +71,6 @@ input[type=search]{font:inherit;font-size:13px;padding:6px 10px;border:1px solid
 .s-none{background:var(--bad-bg);color:var(--bad)}
 .kv{display:flex;justify-content:space-between;gap:12px;margin-top:8px;font-size:12px;color:var(--muted)}
 .kv span:last-child{font-family:var(--mono);color:var(--fg);text-align:right}
-.pbar{height:4px;background:var(--line);border-radius:2px;margin-top:6px;overflow:hidden}
-.pbar i{display:block;height:100%;background:var(--ok)}
 .list{border-top:1px solid var(--line);padding:4px 16px 12px}
 .card:not(.open) .list{display:none}
 .hd{padding:10px 0;border-bottom:1px dashed var(--line)}
@@ -136,6 +134,7 @@ footer{margin-top:28px;padding-top:12px;border-top:1px solid var(--line);font-si
 label.up{cursor:pointer;display:inline-block}
 
 .s-ok{background:var(--ok-bg);color:var(--ok)}
+.s-pct{background:transparent;color:var(--muted);border:1px solid var(--line)}
 .s-tl{background:var(--info-bg);color:var(--info)}
 .s-mot{background:var(--warn-bg);color:var(--warn)}
 .s-chua{background:var(--bad-bg);color:var(--bad)}
@@ -398,14 +397,12 @@ function renderCards(ps){
   if(!ps.length){$("out").innerHTML=`<div class="empty">Không tìm thấy hợp đồng phù hợp.</div>`;return;}
   $("out").innerHTML=`<div class="grid">${ps.map(p=>{
     const open=state.open.has(p.ten);
-    const full=(lst().find(x=>x.ten===p.ten)||p).hd, nScan=full.filter(h=>/^Đã có/.test(h.tt_scan||"")).length, pct=full.length?Math.round(nScan/full.length*100):0;
+    const full=(lst().find(x=>x.ten===p.ten)||p).hd.filter(h=>h.k!=="tl"), nScan=full.filter(h=>/^Đã có/.test(h.tt_scan||"")).length, pct=full.length?Math.round(nScan/full.length*100):0;
     const tags=Object.keys(ST).map(k=>{const n=p.hd.filter(h=>h.k===k).length;return n?`<span class="tag s-${k}">${n} ${ST[k].toLowerCase()}</span>`:""}).join("");
     return `<article class="card ${open?"open":""}" data-p="${esc(p.ten)}">
       <button aria-expanded="${open}"><div class="ct"><h2>${esc(p.ten)}</h2><span class="caret">▶</span></div>
-      <div class="tags">${tags}</div>
-      <div class="kv"><span>${p.hd.length} hợp đồng</span><span>${money(total(p.hd))}</span></div>
-      <div class="kv"><span>Tỷ lệ hoàn thành</span><span>${pct}% (${nScan}/${full.length})</span></div>
-      <div class="pbar"><i style="width:${pct}%"></i></div></button>
+      <div class="tags">${tags}${full.length?`<span class="tag s-pct">tỷ lệ hoàn thành ${pct}%</span>`:""}</div>
+      <div class="kv"><span>${p.hd.length} hợp đồng</span><span>${money(total(p.hd))}</span></div></button>
       <div class="list">${p.hd.map(lineHtml).join("")}</div></article>`}).join("")}</div>`;
 }
 function renderTable(ps){
