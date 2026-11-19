@@ -205,7 +205,7 @@ const sb = supabase.createClient(SB_URL, SB_KEY);
 let DATA = {A:[], B:[]};
 const META = {updated:"12/11/2026", source:"Bang_thong_ke_hop_dong_A-B_va_B-B_cac_du_an_v05_261112"};
 const TABS = {ab:{sub:"Hợp đồng A-B (Stellar với chủ đầu tư), theo dự án", key:"A"}, bb:{sub:"Hợp đồng B-B' (thầu phụ, chuyên gia và các hợp đồng khác), theo dự án", key:"B"}};
-const STS = {ok:"đã scan", tl:"thanh lý", mot:"1 dấu", chua:"chưa scan", none:"chưa ký"};
+const STS = {ok:"đã scan", tl:"thanh lý", mot:"bản 1 dấu", chua:"chưa scan", none:"chưa ký"};
 const ST = {ok:"Đã có bản scan", tl:"Đã thanh lý", mot:"Chỉ có bản 1 dấu", chua:"Chưa có bản scan", none:"Chưa ký HĐ"};
 const state = {tab:"ab", f:"all", pj:"", q:"", show:true, cg:false, view:"card", open:new Set(), files:{}, canWrite:false};
 const $ = id => document.getElementById(id);
