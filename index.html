@@ -203,7 +203,7 @@ const SB_URL = "https://gvjhhvhderpszhgnreto.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2amhodmhkZXJwc3poZ25yZXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2MDQxMjksImV4cCI6MjEwOTE4MDEyOX0.xG7iYyyY3wiuJjfvYiyQQca42obHqrpgSmYkPtamjgw";
 const sb = supabase.createClient(SB_URL, SB_KEY);
 let DATA = {A:[], B:[]};
-const META = {updated:"12/11/2026", source:"Bang_thong_ke_hop_dong_A-B_va_B-B_cac_du_an_v05_261112"};
+const META = {updated:"20/11/2026", source:"Bang_thong_ke_hop_dong_A-B_va_B-B_cac_du_an_v15_261120"};
 const TABS = {ab:{sub:"Hợp đồng A-B (Stellar với chủ đầu tư), theo dự án", key:"A"}, bb:{sub:"Hợp đồng B-B' (thầu phụ, chuyên gia và các hợp đồng khác), theo dự án", key:"B"}};
 const STS = {ok:"đã có bản scan", tl:"đã thanh lý", mot:"chỉ có bản 1 dấu", chua:"chưa có bản scan", none:"chưa ký HĐ"};
 const ST = {ok:"Đã có bản scan", tl:"Đã thanh lý", mot:"Chỉ có bản 1 dấu", chua:"Chưa có bản scan", none:"Chưa ký HĐ"};
@@ -310,10 +310,12 @@ async function route(){
 
 /* ---------- Dữ liệu ---------- */
 async function loadAll(){
-  const [d,f]=await Promise.all([ sb.from("du_lieu").select("id,payload"), sb.from("hop_dong_file").select("key,path,ten_file") ]);
+  const [d,f]=await Promise.all([ sb.from("du_lieu").select("id,payload,updated_at"), sb.from("hop_dong_file").select("key,path,ten_file") ]);
   if(d.error||!d.data||!d.data.length){return false;}
   DATA={A:[],B:[]};
   d.data.forEach(r=>{ if(r.id==="ab")DATA.A=r.payload; if(r.id==="bb")DATA.B=r.payload; });
+  { const t=d.data.map(r=>r.updated_at).filter(Boolean).sort().pop();
+    if(t) META.updated=new Date(t).toLocaleDateString("vi-VN",{timeZone:"Asia/Ho_Chi_Minh",day:"2-digit",month:"2-digit",year:"numeric"}); }
   state.files={}; (f.data||[]).forEach(r=>state.files[r.key]=r);
   return true;
 }
